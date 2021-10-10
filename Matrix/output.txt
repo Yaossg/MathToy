@@ -24,3 +24,5 @@ A - B (2, 2) =
 A * B (2, 2) =
 7 10
 15 22
+toTex(A) =
+\left[ \begin{array}{cc}1.000000 & 2.000000 \\ 3.000000 & 4.000000\end{array} \right]

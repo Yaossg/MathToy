@@ -5,11 +5,22 @@
 #include <vector>
 #include <type_traits>
 #include <functional>
+
+namespace yao_math {
+
+#ifndef YAO_MATH_TO_TEX_GENERIC
+#define YAO_MATH_TO_TEX_GENERIC
+
+template<typename T>
+std::string toTex(T const& t) {
+	return std::to_string(t);
+}
+
+#endif
+
 using std::size_t;
 using std::invalid_argument;
-using std::istream;
-using std::ostream;
-using std::endl;
+using std::function;
 
 struct invalid_matrix: invalid_argument {
     explicit invalid_matrix(const char* message) : invalid_argument(message) {}
@@ -26,9 +37,6 @@ class matrix {
     void alloc() {
         e.resize(m * n);
     }
-    void zero() {
-        for (size_t i = 0; i < m; ++i) for (size_t j = 0; j < n; ++j) at(i, j) = E(0);
-    }
     void clone(matrix const& that) {
         for (size_t i = 0; i < m; ++i) for (size_t j = 0; j < n; ++j) at(i, j) = that.at(i, j);
     }
@@ -38,11 +46,13 @@ class matrix {
     void assert_square_matrix() const {
         if (!is_square()) throw invalid_matrix("determinant of matrix is available only if it is a squre one");
     }
+    static E zero(...) { return 0; }
 public:
     explicit matrix(size_t m): matrix(m, m) {}
-    matrix(size_t m, size_t n): m(m), n(n) { 
+    matrix(size_t m, size_t n, function<E(size_t, size_t)> gen = zero): m(m), n(n) {
         if (!m || !n) throw invalid_matrix("empty matrix is forbidden"); 
-        alloc(); zero(); 
+        alloc(); 
+        for (size_t i = 0; i < m; ++i) for (size_t j = 0; j < n; ++j) at(i, j) = gen(i, j);
     }
     matrix(matrix const& that) = default;
     matrix(matrix&&) = default;
@@ -54,7 +64,7 @@ public:
     E& at(size_t i, size_t j) { return e[i * m + j]; }
     E const& at(size_t i, size_t j) const { return e[i * m + j]; }
 
-    matrix map(std::function<E(E)> mapper) const {
+    matrix map(function<E(E)> mapper) const {
         matrix that(m, n);
         for (size_t i = 0; i < m; ++i) for (size_t j = 0; j < n; ++j) that.at(i, j) = mapper(at(i, j));
         return that;
@@ -74,10 +84,9 @@ public:
     matrix const& operator-=(matrix const& that) { return *this += -that; }
     matrix operator-(matrix that) const { return *this + -that; }
 
-    matrix const& operator*=(E coe) { return map(std::bind(std::multiplies<E>(), coe)); }
+    matrix const& operator*=(E coe) { return *this = *this * coe; }
     matrix operator*(E coe) const {
-        matrix that = *this;
-        return that *= coe;
+        return map(std::bind(std::multiplies<E>(), coe, std::placeholders::_1));
     }
     friend matrix operator*(E coe, matrix that) {
         return that *= coe;
@@ -154,95 +163,20 @@ public:
         return 1 / det_ * adjugate();
     }
 
-
-    friend istream& operator>>(istream& is, matrix& that) {
-        for (size_t i = 0; i < that.m; ++i) for (size_t j = 0; j < that.n; ++j) is >> that.at(i, j);
-        return is;
-    }
-
-    friend ostream& operator<<(ostream& os, matrix const& that) {
-        for (size_t i = 0; i < that.m; ++i) {
+    friend std::string toTex(matrix t) {
+        std::string r = "\\left[ \\begin{array}{" + std::string(t.n, 'c') + '}';
+        for (size_t i = 0; i < t.m; ++i) {
             bool first = true;
-            for (size_t j = 0; j < that.n; ++j) { 
-                if (first) first = false; else os << ' ';
-                os << that.at(i, j);
+            for (size_t j = 0; j < t.n; ++j) {
+                if (first) first = false; else r += " & ";
+                r += toTex(t.at(i, j));
             }
-            os << endl;
-        } 
-        return os;
+            if (i + 1 < t.m)
+                r += " \\\\ ";
+        }
+        return r + "\\end{array} \\right]";
     }
+
 };
 
-
-// test begin
-
-#include <fstream>
-
-using namespace std;
-
-
-int main() {
-    ifstream ifs("input.txt");
-    ofstream ofs("output.txt");
-    int m1, n1;
-    ifs >> m1 >> n1;
-    ofs << "A (" << m1 << ", " << n1 << ") =" << endl;
-    matrix<double> a(m1, n1);
-    ifs >> a;
-    ofs << a;
-    int m2, n2;
-    ifs >> m2 >> n2;
-    ofs << "B (" << m2 << ", " << n2 << ") =" << endl;
-    matrix<double> b(m2, n2);
-    ifs >> b;
-    ofs << b;
-    try {
-        matrix<double> c = a.trans();
-        ofs << "A^T (" << c.row() << ", " << c.col() << ") =" << endl;
-        ofs << c;
-    } catch (invalid_matrix const& e) {
-        ofs << e.what() << endl;
-    }
-    try {
-        double c = a.det();
-        ofs << "|A| =" << endl;
-        ofs << c << endl;
-    } catch (invalid_matrix const& e) {
-        ofs << e.what() << endl;
-    }
-    try {
-        matrix<double> c = a.adjugate();
-        ofs << "A^* =" << endl;
-        ofs << c;
-    } catch (invalid_matrix const& e) {
-        ofs << e.what() << endl;
-    }
-    try {
-        matrix<double> c = a.inverse();
-        ofs << "A^-1 =" << endl;
-        ofs << c;
-    } catch (invalid_matrix const& e) {
-        ofs << e.what() << endl;
-    }
-    try {
-        matrix<double> c = a + b;
-        ofs << "A + B (" << c.row() << ", " << c.col() << ") =" << endl;
-        ofs << c;
-    } catch (invalid_matrix const& e) {
-        ofs << e.what() << endl;
-    }
-    try {
-        matrix<double> c = a - b;
-        ofs << "A - B (" << c.row() << ", " << c.col() << ") =" << endl;
-        ofs << c;
-    } catch (invalid_matrix const& e) {
-        ofs << e.what() << endl;
-    }
-    try {
-        matrix<double> c = a * b;
-        ofs << "A * B (" << c.row() << ", " << c.col() << ") =" << endl;
-        ofs << c;
-    } catch (invalid_matrix const& e) {
-        ofs << e.what() << endl;
-    }
 }

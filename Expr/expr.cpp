@@ -19,6 +19,16 @@ Int gcd(Int x, Int y) {
 	return y == 0 ? x : gcd(y, x % y);
 }
 
+#ifndef YAO_MATH_TO_TEX_GENERIC
+#define YAO_MATH_TO_TEX_GENERIC
+
+template<typename T>
+std::string toTex(T const& t) {
+	return std::to_string(t);
+}
+
+#endif
+
 template<typename Int>
 class Monomial {
 	std::map<std::string, Int> core;
@@ -35,13 +45,13 @@ public:
 			r.core[a] += n;
 		return r;
 	}
-	std::string toString() const {
+	friend std::string toTex(Monomial t) {
 		std::string r;
-		for(auto const& [a, n] : core) {
+		for(auto const& [a, n] : t.core) {
 			r += a;
 			if (n > 1) {
 				r += "^";
-				auto exp = std::to_string(n);
+				auto exp = toTex(n);
 				if (exp.length() > 1) exp = "{" + exp + "}";
 				r += exp;
 			}
@@ -83,8 +93,8 @@ class IntExpr {
 public:
 	IntExpr(): core{{ {}, 0 }} {}
 	IntExpr(Int C): core{{ {}, C }} {}
-	IntExpr(std::string a, Int n = 1): core{{ { {{a, n}} }, 1 }} {}
-	IntExpr(mono mono, Int C): core{{ mono, C }} {}
+	IntExpr(std::string a, Int n = 1): core{{ { {{a, n}} }, 1 }, { {}, 0 }} {}
+	IntExpr(mono mono, Int C = 1): core{{ mono, C }, { {}, 0 }} {}
 	
 	IntExpr operator+() const {
 		return *this;
@@ -132,10 +142,10 @@ public:
 		return r;
 	}
 
-	std::string toString() const {
+	friend std::string toTex(IntExpr t) {
 		std::string r;
 		Int C;
-		for(auto const& [x1, k1] : core) {
+		for(auto const& [x1, k1] : t.core) {
 			if (x1.empty()) {
 				C = k1;
 				continue;
@@ -147,14 +157,14 @@ public:
 				if (k1 == -1)
 					r += "-";
 				else 
-					r += std::to_string(k1);
+					r += toTex(k1);
 			}
-			r += x1.toString();	
+			r += toTex(x1);	
 		}
 		if (C != 0) {
 			if (!r.empty() && C >= 0) 
 				r += "+";
-			r += std::to_string(C);
+			r += toTex(C);
 		}
 		return r;
 	}
@@ -281,8 +291,8 @@ public:
 		return num.eval(name, value) / den.eval(name, value);
 	}
 	
-	std::string toString() const {
-		return "\\frac{" + num.toString() + "}{" + den.toString() + "}";
+	friend std::string toTex(RatioExpr t) {
+		return "\\frac{" + toTex(t.num) + "}{" + toTex(t.den) + "}";
 	}
 	
 };
