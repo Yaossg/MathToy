@@ -12,44 +12,39 @@ namespace yao_math {
 #define YAO_MATH_TO_TEX_GENERIC
 
 template<typename T>
-std::string toTex(T const& t) {
+std::enable_if_t<std::is_fundamental_v<T>, std::string> toTex(T t) {
 	return std::to_string(t);
 }
 
 #endif
 
-using std::size_t;
-using std::invalid_argument;
-using std::function;
-
-struct invalid_matrix: invalid_argument {
+struct invalid_matrix: std::invalid_argument {
     explicit invalid_matrix(const char* message) : invalid_argument(message) {}
 };
 
 // attention: indices range from 0 to n - 1
 template<typename E>
 class matrix {
-    static_assert(!std::is_const<E>::value, "matrix<E const> is forbidden, use matrix<E> const instead");
-    static_assert(!std::is_volatile<E>::value, "matrix<E volatile> is forbidden");
     static_assert(!std::is_same<E, bool>::value, "matrix<bool> is forbidden");
+    
+    using size_t = std::size_t;
+    static E zero(...) { return 0; }
+
     std::vector<E> e;
     size_t m, n;
+
     void alloc() {
         e.resize(m * n);
     }
-    void clone(matrix const& that) {
-        for (size_t i = 0; i < m; ++i) for (size_t j = 0; j < n; ++j) at(i, j) = that.at(i, j);
-    }
     void assert_identical_size(matrix const& that) const {
-        if (m != that.m || n != that.n) throw invalid_matrix("linear operations on matrix can only be applied on matrices with an identical size");
+        if (m != that.m || n != that.n) throw invalid_matrix("linear operations can be applied on matrices with only identical size");
     }
     void assert_square_matrix() const {
-        if (!is_square()) throw invalid_matrix("determinant of matrix is available only if it is a squre one");
+        if (!is_square()) throw invalid_matrix("determinant is available only for a square matrix");
     }
-    static E zero(...) { return 0; }
 public:
     explicit matrix(size_t m): matrix(m, m) {}
-    matrix(size_t m, size_t n, function<E(size_t, size_t)> gen = zero): m(m), n(n) {
+    matrix(size_t m, size_t n, std::function<E(size_t, size_t)> gen = zero): m(m), n(n) {
         if (!m || !n) throw invalid_matrix("empty matrix is forbidden"); 
         alloc(); 
         for (size_t i = 0; i < m; ++i) for (size_t j = 0; j < n; ++j) at(i, j) = gen(i, j);
@@ -64,7 +59,7 @@ public:
     E& at(size_t i, size_t j) { return e[i * m + j]; }
     E const& at(size_t i, size_t j) const { return e[i * m + j]; }
 
-    matrix map(function<E(E)> mapper) const {
+    matrix map(std::function<E(E)> mapper) const {
         matrix that(m, n);
         for (size_t i = 0; i < m; ++i) for (size_t j = 0; j < n; ++j) that.at(i, j) = mapper(at(i, j));
         return that;
@@ -94,7 +89,7 @@ public:
     
     matrix operator*(matrix that) const {
         size_t p = that.m;
-        if (n != p) throw invalid_matrix("matrix multiplication can be applied only if the row() of first matrix equals col() of second one");
+        if (n != p) throw invalid_matrix("multiplication can be applied only if the row() of first matrix equals col() of second one");
         matrix product(m, that.n);
         for (size_t i = 0; i < m; ++i) for (size_t j = 0; j < n; ++j) for (size_t k = 0; k < p; ++k) product.at(i, j) += at(i, k) * that.at(k, j);
         return product;
@@ -163,7 +158,7 @@ public:
         return 1 / det_ * adjugate();
     }
 
-    friend std::string toTex(matrix t) {
+    friend std::string toTex(matrix const& t) {
         std::string r = "\\left[ \\begin{array}{" + std::string(t.n, 'c') + '}';
         for (size_t i = 0; i < t.m; ++i) {
             bool first = true;

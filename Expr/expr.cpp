@@ -4,6 +4,7 @@
 #include <iterator>
 #include <numeric>
 #include <cmath>
+#include <type_traits>
 
 namespace yao_math { 
 
@@ -23,29 +24,31 @@ Int gcd(Int x, Int y) {
 #define YAO_MATH_TO_TEX_GENERIC
 
 template<typename T>
-std::string toTex(T const& t) {
+std::enable_if_t<std::is_fundamental_v<T>, std::string> toTex(T t) {
 	return std::to_string(t);
 }
 
 #endif
 
+#define YAO_MATH_INTERNAL
+
 template<typename Int>
-class Monomial {
+class YAO_MATH_INTERNAL Mono {
 	std::map<std::string, Int> core;
 public:
-	Monomial(): core{} {}
-	Monomial(std::map<std::string, Int> core): core{core} {}
-	friend bool operator <(Monomial const& a, Monomial const& b) {
+	Mono(): core{} {}
+	Mono(std::map<std::string, Int> core): core{core} {}
+	friend bool operator <(Mono const& a, Mono const& b) {
 		if (auto cmp = a.degree() - b.degree()) return cmp > 0;
 		return a.core < b.core;	
 	}
-	friend Monomial operator *(Monomial const& a, Monomial const& b) {
-		Monomial r = a;
+	friend Mono operator *(Mono const& a, Mono const& b) {
+		Mono r = a;
 		for (auto const& [a, n] : b.core)
 			r.core[a] += n;
 		return r;
 	}
-	friend std::string toTex(Monomial t) {
+	friend std::string toTex(Mono const& t) {
 		std::string r;
 		for(auto const& [a, n] : t.core) {
 			r += a;
@@ -80,7 +83,7 @@ class RatioExpr;
 template<typename Int>
 class IntExpr {
 	friend class RatioExpr<Int>;
-	using mono = Monomial<Int>;
+	using mono = Mono<Int>;
 	using core_t = std::map<mono, Int>;
 	core_t core;
 	IntExpr(core_t core): core{core} {}
@@ -91,8 +94,7 @@ class IntExpr {
 		}
 	}
 public:
-	IntExpr(): core{{ {}, 0 }} {}
-	IntExpr(Int C): core{{ {}, C }} {}
+	IntExpr(Int C = 0): core{{ {}, C }} {}
 	IntExpr(std::string a, Int n = 1): core{{ { {{a, n}} }, 1 }, { {}, 0 }} {}
 	IntExpr(mono mono, Int C = 1): core{{ mono, C }, { {}, 0 }} {}
 	
@@ -142,7 +144,7 @@ public:
 		return r;
 	}
 
-	friend std::string toTex(IntExpr t) {
+	friend std::string toTex(IntExpr const& t) {
 		std::string r;
 		Int C;
 		for(auto const& [x1, k1] : t.core) {
@@ -238,8 +240,7 @@ class RatioExpr {
 		num.div(g); den.div(g);
 	}
 public:
-	RatioExpr(): num{0}, den{1} {}
-	RatioExpr(Int C): num{C}, den{1} {}
+	RatioExpr(Int num = 0, Int den = 1): num{num}, den{den} {}
 	RatioExpr(IntExpr<Int> num, IntExpr<Int> den = 1)
 		: num{num}, den{den} { normalize(); }
 	
@@ -291,7 +292,7 @@ public:
 		return num.eval(name, value) / den.eval(name, value);
 	}
 	
-	friend std::string toTex(RatioExpr t) {
+	friend std::string toTex(RatioExpr const& t) {
 		return "\\frac{" + toTex(t.num) + "}{" + toTex(t.den) + "}";
 	}
 	
