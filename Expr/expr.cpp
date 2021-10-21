@@ -8,9 +8,9 @@
 
 namespace yao_math { 
 
-template<typename Int>
-Int fastIntPow(Int a, Int n) {
-	Int r = 1;
+template<typename Base, typename Exp>
+std::enable_if_t<std::is_integral_v<Exp>, Base> pow(Base a, Exp n) {
+	Base r = 1;
 	while(n & 1 && (r *= a, 0), n && (a *= a, 0), n >>= 1);
 	return r;
 }
@@ -226,13 +226,6 @@ public:
 };
 
 template<typename Int>
-IntExpr<Int> pow(IntExpr<Int> a, Int n) {
-	IntExpr<Int> r = 1;
-	while(n & 1 && (r *= a, 0), n && (a *= a, 0), n >>= 1);
-	return r;
-}
-
-template<typename Int>
 class RatioExpr {
 	IntExpr<Int> num, den;
 	void normalize() {
@@ -301,13 +294,6 @@ public:
 template<typename Int>
 RatioExpr<Int> operator/(IntExpr<Int> const& a, IntExpr<Int> const& b) {
 	return {a, b};
-}
-
-template<typename Int>
-RatioExpr<Int> pow(RatioExpr<Int> a, int n) {
-	RatioExpr<Int> r = 1;
-	while(n & 1 && (r *= a, 0), n && (a *= a, 0), n >>= 1);
-	return r;
 }
 
 inline namespace literals { 
