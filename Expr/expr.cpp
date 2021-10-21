@@ -4,31 +4,10 @@
 #include <iterator>
 #include <numeric>
 #include <cmath>
-#include <type_traits>
+
+#include "../yao_math.h"
 
 namespace yao_math { 
-
-template<typename Base, typename Exp>
-std::enable_if_t<std::is_integral_v<Exp>, Base> pow(Base a, Exp n) {
-	Base r = 1;
-	while(n & 1 && (r *= a, 0), n && (a *= a, 0), n >>= 1);
-	return r;
-}
-
-template<typename Int>
-Int gcd(Int x, Int y) {
-	return y == 0 ? x : gcd(y, x % y);
-}
-
-#ifndef YAO_MATH_TO_TEX_GENERIC
-#define YAO_MATH_TO_TEX_GENERIC
-
-template<typename T>
-std::enable_if_t<std::is_fundamental_v<T>, std::string> toTex(T t) {
-	return std::to_string(t);
-}
-
-#endif
 
 #define YAO_MATH_INTERNAL
 
@@ -36,6 +15,7 @@ template<typename Int>
 class YAO_MATH_INTERNAL Mono {
 	std::map<std::string, Int> core;
 public:
+	using int_t = Int;
 	Mono(): core{} {}
 	Mono(std::map<std::string, Int> core): core{core} {}
 	friend bool operator <(Mono const& a, Mono const& b) {
@@ -94,6 +74,7 @@ class IntExpr {
 		}
 	}
 public:
+	using int_t = Int;
 	IntExpr(Int C = 0): core{{ {}, C }} {}
 	IntExpr(std::string a, Int n = 1): core{{ { {{a, n}} }, 1 }, { {}, 0 }} {}
 	IntExpr(mono mono, Int C = 1): core{{ mono, C }, { {}, 0 }} {}
@@ -233,6 +214,7 @@ class RatioExpr {
 		num.div(g); den.div(g);
 	}
 public:
+	using int_t = Int;
 	RatioExpr(Int num = 0, Int den = 1): num{num}, den{den} {}
 	RatioExpr(IntExpr<Int> num, IntExpr<Int> den = 1)
 		: num{num}, den{den} { normalize(); }

@@ -1,22 +1,12 @@
 #include <cstddef>
 #include <utility>
 #include <stdexcept>
-#include <iostream>
 #include <vector>
-#include <type_traits>
 #include <functional>
 
+#include "../yao_math.h"
+
 namespace yao_math {
-
-#ifndef YAO_MATH_TO_TEX_GENERIC
-#define YAO_MATH_TO_TEX_GENERIC
-
-template<typename T>
-std::enable_if_t<std::is_fundamental_v<T>, std::string> toTex(T t) {
-	return std::to_string(t);
-}
-
-#endif
 
 struct invalid_matrix: std::invalid_argument {
     explicit invalid_matrix(const char* message) : invalid_argument(message) {}
@@ -27,26 +17,24 @@ template<typename E>
 class matrix {
     static_assert(!std::is_same<E, bool>::value, "matrix<bool> is forbidden");
     
-    using size_t = std::size_t;
     static E zero(...) { return 0; }
 
     std::vector<E> e;
     size_t m, n;
 
-    void alloc() {
-        e.resize(m * n);
-    }
     void assert_identical_size(matrix const& that) const {
         if (m != that.m || n != that.n) throw invalid_matrix("linear operations can be applied on matrices with only identical size");
     }
     void assert_square_matrix() const {
-        if (!is_square()) throw invalid_matrix("determinant is available only for a square matrix");
+        if (!is_square()) throw invalid_matrix("determinant or trace is available only for a square matrix");
     }
 public:
+    using element_t = E;
+    using size_t = std::size_t;
     explicit matrix(size_t m): matrix(m, m) {}
     matrix(size_t m, size_t n, std::function<E(size_t, size_t)> gen = zero): m(m), n(n) {
         if (!m || !n) throw invalid_matrix("empty matrix is forbidden"); 
-        alloc(); 
+        e.resize(m * n);
         for (size_t i = 0; i < m; ++i) for (size_t j = 0; j < n; ++j) at(i, j) = gen(i, j);
     }
     matrix(matrix const& that) = default;
@@ -149,6 +137,13 @@ public:
         matrix that(m, n);
         for (size_t i = 0; i < m; ++i) for (size_t j = 0; j < n; ++j) that.at(i, j) = algebraic_cofactor(i, j);
         return that;
+    }
+
+    E trace() const {
+        assert_square_matrix();
+        E trace_ = 0;
+        for (size_t i = 0; i < m; ++i) trace_ += at(i, i);
+        return trace_;
     }
 
     matrix inverse() const {
