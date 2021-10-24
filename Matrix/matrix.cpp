@@ -6,6 +6,9 @@
 
 #include "../yao_math.h"
 
+#ifndef YAO_MATH_MATRIX
+#define YAO_MATH_MATRIX
+
 namespace yao_math {
 
 struct invalid_matrix: std::invalid_argument {
@@ -170,3 +173,5 @@ public:
 };
 
 }
+
+#endif

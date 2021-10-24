@@ -1,9 +1,10 @@
 #include <type_traits>
 #include <string>
 
+#ifndef YAO_MATH
+#define YAO_MATH
+
 namespace yao_math {
-
-
 
 template<typename Int>
 constexpr Int gcd(Int x, Int y) {
@@ -24,3 +25,5 @@ std::enable_if_t<std::is_integral_v<Exp>, Base> pow(Base a, Exp n) {
 }
 
 }
+
+#endif

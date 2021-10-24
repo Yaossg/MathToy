@@ -7,6 +7,9 @@
 
 #include "../yao_math.h"
 
+#ifndef YAO_MATH_EXPR
+#define YAO_MATH_EXPR
+
 namespace yao_math { 
 
 #define YAO_MATH_INTERNAL
@@ -301,3 +304,5 @@ IntExpr<long long> operator"" _eLL(const char* chars, size_t) {
 }
 }
 }
+
+#endif
