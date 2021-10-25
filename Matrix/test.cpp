@@ -57,7 +57,7 @@ int main() {
         ofs << e.what() << endl;
     }
     try {
-        matrix<double> c = a.adjugate();
+        matrix<double> c = a.adjoint();
         ofs << "A^* =" << endl;
         ofs << c;
     } catch (invalid_matrix const& e) {

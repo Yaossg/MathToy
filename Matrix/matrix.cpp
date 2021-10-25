@@ -15,6 +15,8 @@ struct invalid_matrix: std::invalid_argument {
     explicit invalid_matrix(const char* message) : invalid_argument(message) {}
 };
 
+#define ASSERT_SQUARE(func) do if (!is_square()) throw invalid_matrix(func " is available only for square matrices"); while (false)
+
 // attention: indices range from 0 to n - 1
 template<typename E>
 class matrix {
@@ -25,12 +27,6 @@ class matrix {
     std::vector<E> e;
     size_t m, n;
 
-    void assert_identical_size(matrix const& that) const {
-        if (m != that.m || n != that.n) throw invalid_matrix("linear operations can be applied on matrices with only identical size");
-    }
-    void assert_square_matrix() const {
-        if (!is_square()) throw invalid_matrix("determinant or trace is available only for a square matrix");
-    }
 public:
     using element_t = E;
     using size_t = std::size_t;
@@ -45,6 +41,13 @@ public:
     size_t row() const { return m; }
     size_t col() const { return n; }
     size_t sz() const { return m * n; }
+
+    bool is_square() const { return m == n; }
+    bool is_singleton() const { return m == 1 && n == 1; }
+    bool is_vector() const { return (m == 1) != (n == 1); }
+    bool is_row_vector() const { return m == 1 && n != 1; }
+    bool is_col_vector() const { return m != 1 && n == 1; }
+
     matrix& operator=(matrix const& that) = default;
     matrix& operator=(matrix&& that) = default;
     E& at(size_t i, size_t j) { return e[i * m + j]; }
@@ -61,7 +64,7 @@ public:
     matrix operator-() const { return map(std::negate<E>()); }
 
     matrix const& operator+=(matrix const& that) {
-        assert_identical_size(that);
+        if (m != that.m || n != that.n) throw invalid_matrix("addition can be applied only on matrices with an identical size");
         for (size_t i = 0; i < m; ++i) for (size_t j = 0; j < n; ++j) at(i, j) += that.at(i, j);
         return *this;
     }
@@ -92,12 +95,6 @@ public:
         return that;
     }
 
-    bool is_square() const { return m == n; }
-    bool is_singleton() const { return m == 1 && n == 1; }
-    bool is_vector() const { return (m == 1) != (n == 1); }
-    bool is_row_vector() const { return m == 1 && n != 1; }
-    bool is_col_vector() const { return m != 1 && n == 1; }
-
     E cofactor(size_t u, size_t v) const {
         matrix that(m - 1, n - 1);
         for (size_t i = 0; i < m; ++i) for (size_t j = 0; j < n; ++j) {
@@ -115,7 +112,7 @@ public:
     }
 
     E det() const {
-        assert_square_matrix();
+        ASSERT_SQUARE("determinant");
         switch (m) { // shortcut
             case 1: return at(0, 0);
             case 2: return at(0, 0) * at(1, 1) - at(0, 1) * at(1, 0);
@@ -135,25 +132,23 @@ public:
         return ret;
     }
 
-    matrix adjugate() const {
-        assert_square_matrix();
-        matrix that(m, n);
-        for (size_t i = 0; i < m; ++i) for (size_t j = 0; j < n; ++j) that.at(i, j) = algebraic_cofactor(i, j);
-        return that;
+    matrix adjoint() const {
+        ASSERT_SQUARE("adjoint");
+        return matrix(m, n, [this] (size_t i, size_t j) { return algebraic_cofactor(i, j); });
     }
 
     E trace() const {
-        assert_square_matrix();
+        ASSERT_SQUARE("trace");
         E trace_ = 0;
         for (size_t i = 0; i < m; ++i) trace_ += at(i, i);
         return trace_;
     }
 
     matrix inverse() const {
-        assert_square_matrix();
+        ASSERT_SQUARE("inverse");
         E det_ = det();
         if (det_ == 0) throw invalid_matrix("matrix whose determinant is zero has no inverse matrix");
-        return 1 / det_ * adjugate();
+        return 1 / det_ * adjoint();
     }
 
     friend std::string toTex(matrix const& t) {
@@ -171,6 +166,8 @@ public:
     }
 
 };
+
+#undef ASSERT_SQUARE
 
 }
 
