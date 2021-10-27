@@ -127,7 +127,9 @@ public:
         }
         E ret = 0;
         for (size_t j = 0; j < n; ++j) {
-            ret += at(0, j) * algebraic_cofactor(0, j);
+            E e = at(0, j);
+            if (e != 0)
+                ret += e * algebraic_cofactor(0, j);
         }
         return ret;
     }
@@ -149,6 +151,24 @@ public:
         E det_ = det();
         if (det_ == 0) throw invalid_matrix("matrix whose determinant is zero has no inverse matrix");
         return 1 / det_ * adjoint();
+    }
+
+    E sum() const {
+        E sum_ = 0;
+        for (size_t i = 0; i < sz(); ++i) sum_ += e[i];
+        return sum_;
+    }
+
+    E rowSum(size_t i) const {
+        E sum_ = 0;
+        for (size_t j = 0; j < n; ++j) sum_ += at(i, j);
+        return sum_;
+    }
+
+    E colSum(size_t j) const {
+        E sum_ = 0;
+        for (size_t i = 0; i < m; ++i) sum_ += at(i, j);
+        return sum_;
     }
 
     friend std::string toTex(matrix const& t) {
