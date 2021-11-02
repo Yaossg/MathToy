@@ -95,6 +95,10 @@ public:
         return that;
     }
 
+    matrix submat(size_t z, size_t w, size_t u, size_t v) const {
+        return matrix(u, v, [this] (size_t i, size_t j) { return at(z + i, w + j); });
+    }
+
     E cofactor(size_t u, size_t v) const {
         matrix that(m - 1, n - 1);
         for (size_t i = 0; i < m; ++i) for (size_t j = 0; j < n; ++j) {
@@ -153,22 +157,10 @@ public:
         return 1 / det_ * adjoint();
     }
 
-    E sum() const {
-        E sum_ = 0;
-        for (size_t i = 0; i < sz(); ++i) sum_ += e[i];
-        return sum_;
-    }
-
-    E rowSum(size_t i) const {
-        E sum_ = 0;
-        for (size_t j = 0; j < n; ++j) sum_ += at(i, j);
-        return sum_;
-    }
-
-    E colSum(size_t j) const {
-        E sum_ = 0;
-        for (size_t i = 0; i < m; ++i) sum_ += at(i, j);
-        return sum_;
+    E reduce(std::function<E(E, E)> fold) const {
+        E acc = e[0];
+        for (size_t i = 1; i < sz(); ++i) acc = fold(acc, e[i]);
+        return acc;
     }
 
     friend std::string toTex(matrix const& t) {
