@@ -90,9 +90,7 @@ public:
     }
 
     matrix trans() const {
-        matrix that(n, m);
-        for (size_t i = 0; i < m; ++i) for (size_t j = 0; j < n; ++j) that.at(j, i) = at(i, j);
-        return that;
+        return matrix(n, m, [this] (size_t i, size_t j) { return at(j, i); });
     }
 
     matrix submat(size_t z, size_t w, size_t u, size_t v) const {
@@ -140,7 +138,7 @@ public:
 
     matrix adjoint() const {
         ASSERT_SQUARE("adjoint");
-        return matrix(m, n, [this] (size_t i, size_t j) { return algebraic_cofactor(i, j); });
+        return matrix(m, n, [this] (size_t i, size_t j) { return algebraic_cofactor(j, i); });
     }
 
     E trace() const {
