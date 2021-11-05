@@ -3,11 +3,19 @@
 #include <stdexcept>
 #include <vector>
 #include <functional>
+#include <cmath>
+#include <iostream>
 
 #include "../yao_math.h"
 
 #ifndef YAO_MATH_MATRIX
 #define YAO_MATH_MATRIX
+
+#ifdef YAO_MATH_MATRIX_NO_ARITHMETIC
+#define YAO_MATH_MATRIX_NO_DET_OPTIMZIE
+#define YAO_MATH_MATRIX_NO_IOSTREAM
+#define YAO_MATH_MATRIX_NO_NORMALIZE
+#endif
 
 namespace yao_math {
 
@@ -30,7 +38,7 @@ class matrix {
 public:
     using element_t = E;
     using size_t = std::size_t;
-    explicit matrix(size_t m): matrix(m, m) {}
+    explicit matrix(size_t m, std::function<E(size_t, size_t)> gen = zero): matrix(m, m, gen) {}
     matrix(size_t m, size_t n, std::function<E(size_t, size_t)> gen = zero): m(m), n(n) {
         if (!m || !n) throw invalid_matrix("empty matrix is forbidden"); 
         e.resize(m * n);
@@ -94,7 +102,7 @@ public:
     }
 
     matrix submat(size_t z, size_t w, size_t u, size_t v) const {
-        return matrix(u, v, [this] (size_t i, size_t j) { return at(z + i, w + j); });
+        return matrix(u, v, [this, z, w] (size_t i, size_t j) { return at(z + i, w + j); });
     }
 
     E cofactor(size_t u, size_t v) const {
@@ -130,7 +138,9 @@ public:
         E ret = 0;
         for (size_t j = 0; j < n; ++j) {
             E e = at(0, j);
-            if (e != 0)
+#ifndef YAO_MATH_MATRIX_NO_DET_OPTIMZIE
+            if (e)
+#endif
                 ret += e * algebraic_cofactor(0, j);
         }
         return ret;
@@ -141,18 +151,18 @@ public:
         return matrix(m, n, [this] (size_t i, size_t j) { return algebraic_cofactor(j, i); });
     }
 
-    E trace() const {
-        ASSERT_SQUARE("trace");
-        E trace_ = 0;
-        for (size_t i = 0; i < m; ++i) trace_ += at(i, i);
-        return trace_;
-    }
-
     matrix inverse() const {
         ASSERT_SQUARE("inverse");
         E det_ = det();
         if (det_ == 0) throw invalid_matrix("matrix whose determinant is zero has no inverse matrix");
         return 1 / det_ * adjoint();
+    }
+
+    E trace() const {
+        ASSERT_SQUARE("trace");
+        E trace_ = 0;
+        for (size_t i = 0; i < m; ++i) trace_ += at(i, i);
+        return trace_;
     }
 
     E reduce(std::function<E(E, E)> fold) const {
@@ -161,6 +171,32 @@ public:
         return acc;
     }
 
+    E reduceRow(size_t row, std::function<E(E, E)> fold) const {
+        E acc = at(row, 0);
+        for (size_t j = 1; j < n; ++j) acc = fold(acc, at(row, j));
+        return acc;
+    }
+
+    E reduceCol(size_t col, std::function<E(E, E)> fold) const {
+        E acc = at(0, col);
+        for (size_t i = 1; i < m; ++i) acc = fold(acc, at(i, col));
+        return acc;
+    }
+#ifndef YAO_MATH_MATRIX_NO_NORMALIZE
+    matrix normalizeRow() const {
+        matrix squared = map(std::bind(std::multiplies<E>(), std::placeholders::_1, std::placeholders::_1));
+        std::vector<E> length(m);
+        for (size_t i = 0; i < m; ++i) length[i] = std::sqrt(squared.reduceRow(i, std::plus<E>()));
+        return matrix(m, n, [this, &length] (size_t i, size_t j) { return at(i, j) / length[i]; });
+    }
+
+    matrix normalizeCol() const {
+        matrix squared = map(std::bind(std::multiplies<E>(), std::placeholders::_1, std::placeholders::_1));
+        std::vector<E> length(n);
+        for (size_t j = 0; j < n; ++j) length[j] = std::sqrt(squared.reduceCol(j, std::plus<E>()));
+        return matrix(m, n, [this, &length] (size_t i, size_t j) { return at(i, j) / length[j]; });
+    }
+#endif
     friend std::string toTex(matrix const& t) {
         std::string r = "\\left[ \\begin{array}{" + std::string(t.n, 'c') + '}';
         for (size_t i = 0; i < t.m; ++i) {
@@ -174,7 +210,24 @@ public:
         }
         return r + "\\end{array} \\right]";
     }
+#ifndef YAO_MATH_MATRIX_NO_IOSTREAM
+    friend std::istream& operator>>(std::istream& is, matrix& that) {
+        for (size_t i = 0; i < that.m; ++i) for (size_t j = 0; j < that.n; ++j) is >> that.at(i, j);
+        return is;
+    }
 
+    friend std::ostream& operator<<(std::ostream& os, matrix const& that) {
+        for (size_t i = 0; i < that.m; ++i) {
+            bool first = true;
+            for (size_t j = 0; j < that.n; ++j) { 
+                if (first) first = false; else os << ' ';
+                os << that.at(i, j);
+            }
+            os << std::endl;
+        } 
+        return os;
+    }
+#endif
 };
 
 #undef ASSERT_SQUARE
