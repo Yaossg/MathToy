@@ -134,16 +134,23 @@ matrix inverse() const;
 ```
 伴随矩阵和逆矩阵
 注意必须是方阵才能执行此函数
+
 ```C++
 E trace() const;
 ```
 矩阵的迹
+
+注意必须是方阵才能执行此函数
+
 ```C++
 E reduce(std::function<E(E, E)> fold) const;
 E reduceRow(size_t row, std::function<E(E, E)> fold) const;
 E reduceCol(size_t col, std::function<E(E, E)> fold) const;
 ```
 归约所有元素，或某一行某一列。
+
+归约顺序由小到大，归约所有元素时`at(i, j)`迭代下标递增是先`j`后`i`
+
 ```C++
 matrix normalizeRow() const;
 matrix normalizeCol() const;
