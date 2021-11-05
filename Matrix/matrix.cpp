@@ -1,13 +1,3 @@
-#include <cstddef>
-#include <utility>
-#include <stdexcept>
-#include <vector>
-#include <functional>
-#include <cmath>
-#include <iostream>
-
-#include "../yao_math.h"
-
 #ifndef YAO_MATH_MATRIX
 #define YAO_MATH_MATRIX
 
@@ -16,6 +6,22 @@
 #define YAO_MATH_MATRIX_NO_IOSTREAM
 #define YAO_MATH_MATRIX_NO_NORMALIZE
 #endif
+
+#include <cstddef>
+#include <utility>
+#include <stdexcept>
+#include <vector>
+#include <functional>
+
+#ifndef YAO_MATH_MATRIX_NO_NORMALIZE
+#include <cmath>
+#endif
+#ifndef YAO_MATH_MATRIX_NO_IOSTREAM
+#include <iostream>
+#endif
+
+#include "../yao_math.h"
+
 
 namespace yao_math {
 
