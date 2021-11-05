@@ -6,15 +6,11 @@
 
 前置头文件，引入`yao_math::toTex` 和 `yao_math::pow`
 
------
-
 ```C++
 namespace yao_math
 ```
 
 本头文件定义的类均在此命名空间下
-
------
 
 
 ```C++
@@ -22,8 +18,6 @@ struct invalid_matrix: std::invalid_argument
 ```
 
 矩阵相关的异常
-
------
 
 
 ```C++
@@ -131,6 +125,9 @@ E det() const;
 行列式
 采用拉普拉斯按第一行展开
 注意必须是方阵才能执行此函数
+
+`#define YAO_MATH_MATRIX_NO_DET_OPTIMZIE`来适应`E`不可以转换为`bool`的情况
+
 ```C++
 matrix adjoint() const;
 matrix inverse() const;
@@ -151,7 +148,10 @@ E reduceCol(size_t col, std::function<E(E, E)> fold) const;
 matrix normalizeRow() const;
 matrix normalizeCol() const;
 ```
-按行或按列归一化
+按行或按列归一化，`std::sqrt(E)`必须有定义
+
+`#define YAO_MATH_MATRIX_NO_NORMALIZE`来取消这两个函数
+
 ```C++
 friend std::string toTex(matrix const& t);
 ```
@@ -160,4 +160,7 @@ friend std::string toTex(matrix const& t);
 friend std::istream& operator>>(std::istream& is, matrix& that);
 friend std::ostream& operator<<(std::ostream& os, matrix const& that);
 ```
-从 `iostream` 中输入输出矩阵
+从 `iostream` 中输入输出矩阵，需要元素实现相关函数重载。
+
+`#define YAO_MATH_MATRIX_NO_IOSTREAM`来取消这两个函数
+
