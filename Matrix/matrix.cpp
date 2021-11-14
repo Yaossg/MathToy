@@ -1,24 +1,14 @@
 #ifndef YAO_MATH_MATRIX
 #define YAO_MATH_MATRIX
 
-#ifdef YAO_MATH_MATRIX_NO_ARITHMETIC
-#define YAO_MATH_MATRIX_NO_DET_OPTIMZIE
-#define YAO_MATH_MATRIX_NO_IOSTREAM
-#define YAO_MATH_MATRIX_NO_NORMALIZE
-#endif
-
 #include <cstddef>
 #include <utility>
 #include <stdexcept>
 #include <vector>
 #include <functional>
 
-#ifndef YAO_MATH_MATRIX_NO_NORMALIZE
 #include <cmath>
-#endif
-#ifndef YAO_MATH_MATRIX_NO_IOSTREAM
 #include <iostream>
-#endif
 
 #include "../yao_math.h"
 
@@ -144,9 +134,7 @@ public:
         E ret = 0;
         for (size_t j = 0; j < n; ++j) {
             E e = at(0, j);
-#ifndef YAO_MATH_MATRIX_NO_DET_OPTIMZIE
             if (e)
-#endif
                 ret += e * algebraic_cofactor(0, j);
         }
         return ret;
@@ -188,7 +176,7 @@ public:
         for (size_t i = 1; i < m; ++i) acc = fold(acc, at(i, col));
         return acc;
     }
-#ifndef YAO_MATH_MATRIX_NO_NORMALIZE
+
     matrix normalizeRow() const {
         matrix squared = map(std::bind(std::multiplies<E>(), std::placeholders::_1, std::placeholders::_1));
         std::vector<E> length(m);
@@ -202,7 +190,7 @@ public:
         for (size_t j = 0; j < n; ++j) length[j] = std::sqrt(squared.reduceCol(j, std::plus<E>()));
         return matrix(m, n, [this, &length] (size_t i, size_t j) { return at(i, j) / length[j]; });
     }
-#endif
+
     friend std::string toTex(matrix const& t) {
         std::string r = "\\left[ \\begin{array}{" + std::string(t.n, 'c') + '}';
         for (size_t i = 0; i < t.m; ++i) {
@@ -216,7 +204,7 @@ public:
         }
         return r + "\\end{array} \\right]";
     }
-#ifndef YAO_MATH_MATRIX_NO_IOSTREAM
+    
     friend std::istream& operator>>(std::istream& is, matrix& that) {
         for (size_t i = 0; i < that.m; ++i) for (size_t j = 0; j < that.n; ++j) is >> that.at(i, j);
         return is;
@@ -233,7 +221,6 @@ public:
         } 
         return os;
     }
-#endif
 };
 
 #undef ASSERT_SQUARE

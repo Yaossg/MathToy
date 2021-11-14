@@ -12,10 +12,8 @@
 
 namespace yao_math { 
 
-#define YAO_MATH_INTERNAL
-
 template<typename Int>
-class YAO_MATH_INTERNAL Mono {
+class Mono {
 	std::map<std::string, Int> core;
 public:
 	using int_t = Int;
@@ -24,6 +22,12 @@ public:
 	friend bool operator <(Mono const& a, Mono const& b) {
 		if (auto cmp = a.degree() - b.degree()) return cmp > 0;
 		return a.core < b.core;	
+	}
+	friend bool operator ==(Mono const& a, Mono const& b) { 
+		return a.core == b.core;
+	}
+	friend bool operator !=(Mono const& a, Mono const& b) { 
+		return a.core != b.core;
 	}
 	friend Mono operator *(Mono const& a, Mono const& b) {
 		Mono r = a;
@@ -81,6 +85,10 @@ public:
 	IntExpr(Int C = 0): core{{ {}, C }} {}
 	IntExpr(std::string a, Int n = 1): core{{ { {{a, n}} }, 1 }, { {}, 0 }} {}
 	IntExpr(mono mono, Int C = 1): core{{ mono, C }, { {}, 0 }} {}
+
+	explicit operator bool() const {
+		return core != core_t{{ {}, 0 }};
+	}
 	
 	IntExpr operator+() const {
 		return *this;
@@ -117,6 +125,7 @@ public:
 	}	
 	
 	friend IntExpr operator*(IntExpr const& a, IntExpr const& b) {
+		if (!a || !b) return {};
 		IntExpr r;
 		for(auto const& [x1, k1] : a.core) {
 			for(auto const& [x2, k2] : b.core) {
@@ -221,6 +230,10 @@ public:
 	RatioExpr(Int num = 0, Int den = 1): num{num}, den{den} {}
 	RatioExpr(IntExpr<Int> num, IntExpr<Int> den = 1)
 		: num{num}, den{den} { normalize(); }
+
+	explicit operator bool() {
+		return num;
+	}
 	
 	RatioExpr operator+() const {
 		return *this;
@@ -251,6 +264,7 @@ public:
 	}
 	
 	friend RatioExpr operator*(RatioExpr const& a, RatioExpr const& b) {
+		if (!a || !b) return {};
 		return {a.num * b.num, a.den * b.den};
 	}
 	
