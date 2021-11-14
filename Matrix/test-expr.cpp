@@ -1,9 +1,7 @@
-#define YAO_MATH_MATRIX_NO_ARITHMETIC
 #include "matrix.cpp"
 #include "../Expr/expr.cpp"
 
 #include <fstream>
-#include <iostream>
 
 using namespace std;
 using namespace yao_math;

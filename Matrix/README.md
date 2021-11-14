@@ -25,7 +25,11 @@ template<typename E>
 class matrix
 ```
 
-## 矩阵类
+矩阵类模板
+
+## 矩阵类模板
+
+### 模板参数 `E`
 
 `E` 为矩阵的元素类型，至少需要满足下列要求
 
@@ -39,7 +43,8 @@ class matrix
 
 注意：矩阵的行列下标均从 0 开始
 
-## 公共成员和友元函数
+### 公共成员和友元函数
+
 ```C++
 using element_t = E;
 using size_t = std::size_t;
@@ -126,7 +131,7 @@ E det() const;
 采用拉普拉斯按第一行展开
 注意必须是方阵才能执行此函数
 
-`#define YAO_MATH_MATRIX_NO_DET_OPTIMZIE`来适应`E`不可以转换为`bool`的情况
+`(bool)std::declval<E>()`必须有意义才能使用该函数
 
 ```C++
 matrix adjoint() const;
@@ -155,19 +160,26 @@ E reduceCol(size_t col, std::function<E(E, E)> fold) const;
 matrix normalizeRow() const;
 matrix normalizeCol() const;
 ```
-按行或按列归一化，`std::sqrt(E)`必须有定义
+按行或按列归一化
 
-`#define YAO_MATH_MATRIX_NO_NORMALIZE`来取消这两个函数
+`std::sqrt(std::declval<E>())`必须有意义才能使用该函数
 
 ```C++
 friend std::string toTex(matrix const& t);
 ```
-将矩阵转换为Tex（可以用于如latex）
+将矩阵转换为Tex（可以用于如 LaTeX）
+
+`yao_math::toTex(std::declval<E>())`必须有意义才能使用该函数
+
 ```C++
 friend std::istream& operator>>(std::istream& is, matrix& that);
 friend std::ostream& operator<<(std::ostream& os, matrix const& that);
 ```
 从 `iostream` 中输入输出矩阵，需要元素实现相关函数重载。
 
-`#define YAO_MATH_MATRIX_NO_IOSTREAM`来取消这两个函数
+## 示例程序
+
+[两个实数矩阵输入输出各类运算示例](./test.cpp)
+
+[五阶行列式展开LaTeX生成器](./test-expr.cpp)
 
