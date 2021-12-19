@@ -21,8 +21,8 @@ std::enable_if_t<std::is_fundamental_v<T>, std::string> toTex(T t) {
 }
 
 // generic implementation of fast power with the integral exponent
-template<typename Base, typename Exp>
-std::enable_if_t<std::is_integral_v<Exp>, Base> pow(Base a, Exp n) {
+template<typename Base>
+Base pow(Base a, std::size_t n) {
 	Base r = 1;
 	while(n & 1 && (r *= a, 0), n && (a *= a, 0), n >>= 1);
 	return r;

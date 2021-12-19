@@ -10,7 +10,6 @@ Some of toys might be divided into sub-projects, which should be considered rela
 
 - [DAL4](DAL4) 
 - [Expr](Expr) 
-
 - [Matrix](Matrix)
 - [Int](Integers)
 

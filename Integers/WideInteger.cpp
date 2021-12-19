@@ -8,6 +8,7 @@
 #include <stdexcept>
 #include <type_traits>
 
+#include "../yao_math.h"
 #include "IntegerConv.cpp"
 
 namespace yao_math {
@@ -27,11 +28,11 @@ struct common_type<yao_math::wide_int<N, S>,
 
 namespace yao_math {
 
-using size_t = std::size_t;
+using std::size_t;
 using byte = unsigned char;
 using uint = unsigned int;
 
-template<std::size_t N, bool S>
+template<size_t N, bool S>
 struct wide_int {
     static_assert(N, "N must not be 0");
     static_assert((N & 7) == 0, "N should be a multiplier of 8");
@@ -43,8 +44,11 @@ struct wide_int {
 
     struct div_t {
         wide_int quot, rem;
-        div_t operator+() const noexcept { return *this; }
-        div_t operator-() const noexcept { return {-quot, -rem}; }
+        div_t negative() {
+            quot.negative();
+            rem.negative();
+            return *this; 
+        }
     };
 
     wide_int() noexcept {
@@ -112,9 +116,7 @@ struct wide_int {
     }
 
     wide_int& negative() noexcept {
-        complement();
-        operator++();
-        return *this;
+        return complement().operator++();
     }
 
     wide_int operator+() const noexcept {
@@ -289,7 +291,7 @@ const static char table[] =
         if (!rhs) throw std::invalid_argument("divided by 0");
         if (!*this) return {0, 0};
         switch (is_negative() + rhs.is_negative()) {
-            case 1: return -abs().div(rhs.abs());
+            case 1: return abs().div(rhs.abs()).negative();
             case 2: return abs().div(rhs.abs());
         }
         size_t rbits = rhs.log2();
