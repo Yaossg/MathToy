@@ -25,21 +25,22 @@ namespace yao_math::int_conv {
 			else return num + 'A' - 10;
 		}
 	}
+
 	template<typename UIntT, std::enable_if_t<std::is_unsigned_v<UIntT>, bool> = true>
-	std::string uint_to_str(UIntT integer, int base = 10) {
-		if (base::check(base)) throw std::invalid_argument("invalid integer base");
-		if (integer == 0) return "0";
-		std::string ret;
-		while (integer > 0) {
-			ret += base::to_char(integer % base, base);
-			integer /= base;
+	void to_string(char* cp, UIntT val, int base = 10) {
+		if (cp == nullptr) throw std::invalid_argument("nullptr");
+		if (base::check(base)) throw std::invalid_argument("invalid base");
+		if (val == 0) *cp = '0';
+		while (val > 0) {
+			*cp++ = base::to_char(val % base, base);
+			val /= base;
 		}
-		return ret;
 	}
 		
 	template<typename UIntT, std::enable_if_t<std::is_unsigned_v<UIntT>, bool> = true>
-	UIntT str_to_uint(char const * cp, int base = 10) {
-		if (base::check(base)) throw std::invalid_argument("invalid integer base");
+	UIntT from_string(const char* cp, int base = 10) {
+		if (cp == nullptr) throw std::invalid_argument("nullptr");
+		if (base::check(base)) throw std::invalid_argument("invalid base");
 		if (*cp == 0) throw std::invalid_argument("invalid string");
 		UIntT ret = 0;
 		while (char ch = *cp++) {

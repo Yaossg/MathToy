@@ -4,7 +4,7 @@
 #include <optional>
 #include <type_traits>
 
-namespace yao_math::integer::format {
+namespace yao_math::int_format {
 
 template<typename CharT>
 struct Characters {
@@ -103,7 +103,7 @@ std::basic_string<CharT, Traits, Alloc> meta_int_format(
 
 int main()
 {
-	using namespace yao_math::integer::format;
+	using namespace yao_math::int_format;
 	using namespace std;
 	cout<<meta_int_format<false, char>(18446744073709551615ull, {})<<endl;
 	

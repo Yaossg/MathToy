@@ -9,7 +9,7 @@
 #include <type_traits>
 
 #include "../yao_math.h"
-#include "IntegerConv.cpp"
+#include "int_conv.cpp"
 
 namespace yao_math {
     template<std::size_t N, bool S>
