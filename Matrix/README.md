@@ -49,7 +49,6 @@ class matrix
 
 ```C++
 using element_t = E;
-using size_t = std::size_t;
 ```
 成员类型
 ```C++

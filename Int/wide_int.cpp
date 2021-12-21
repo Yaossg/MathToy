@@ -12,23 +12,22 @@
 #include "int_conv.cpp"
 
 namespace yao_math {
-    template<std::size_t N, bool S>
+    template<size_t N, bool S>
     struct wide_int;
 }
 
 namespace std {
-template <std::size_t N, bool S, std::size_t M, bool R>
+template <size_t N, bool S, size_t M, bool R>
 struct common_type<yao_math::wide_int<N, S>,
                    yao_math::wide_int<M, R>> {
-    using type = yao_math::wide_int<std::max(N, M), S || R>;
+    using type = yao_math::wide_int<max(M, N), (S == R ? S : S ? N > M : N < M)>;
 };
 }
 
-#define REQUIRES(cond) std::enable_if_t<cond, bool> = true
+#define REQUIRES(cond) ::std::enable_if_t<cond, bool> = true
 
 namespace yao_math {
 
-using std::size_t;
 using byte = unsigned char;
 using uint = unsigned int;
 

@@ -33,7 +33,6 @@ class matrix {
 
 public:
     using element_t = E;
-    using size_t = std::size_t;
     explicit matrix(size_t m, std::function<E(size_t, size_t)> gen = zero): matrix(m, m, gen) {}
     matrix(size_t m, size_t n, std::function<E(size_t, size_t)> gen = zero): m(m), n(n) {
         if (!m || !n) throw invalid_matrix("empty matrix is forbidden"); 
