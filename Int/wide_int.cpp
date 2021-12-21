@@ -1,6 +1,5 @@
 // note: in this header, int[N] should be treated as a single little-endian integer
 
-#include <cstddef>
 #include <array>
 #include <vector>
 #include <cstring>
@@ -12,6 +11,19 @@
 #include "int_conv.cpp"
 
 namespace yao_math {
+    using byte = unsigned char;
+    using uint = unsigned int;
+
+    uint log2byte(byte b) {
+        const static char table[] = 
+            "-011222233333333444444444444444455555555555555555555555555555555"
+            "6666666666666666666666666666666666666666666666666666666666666666"
+            "7777777777777777777777777777777777777777777777777777777777777777"
+            "7777777777777777777777777777777777777777777777777777777777777777"
+            ;
+        return table[b] - '0';
+    }
+
     template<size_t N, bool S>
     struct wide_int;
 }
@@ -28,8 +40,6 @@ struct common_type<yao_math::wide_int<N, S>,
 
 namespace yao_math {
 
-using byte = unsigned char;
-using uint = unsigned int;
 
 template<size_t N, bool S>
 struct wide_int {
@@ -41,24 +51,8 @@ struct wide_int {
 
     byte bytes[BYTES];
 
-    struct div_t {
-        wide_int quot, rem;
-        div_t negative() {
-            quot.negative();
-            rem.negative();
-            return *this; 
-        }
-    };
-
     wide_int() noexcept {
         std::memset(bytes, 0, BYTES);
-    }
-
-    explicit operator bool() const noexcept {
-        for (size_t i = 0; i < BYTES; ++i) {
-            if (bytes[i]) return true;
-        }
-        return false;
     }
 
     template<typename Unsigned, REQUIRES(std::is_unsigned_v<Unsigned>)>
@@ -71,21 +65,6 @@ struct wide_int {
             if (!u) break;
         }
     }
-    
-    template<typename Unsigned, REQUIRES(std::is_unsigned_v<Unsigned>)>
-    wide_int& operator=(Unsigned u) noexcept {
-        return *new (this) wide_int(u);
-    }
-
-    template<typename Signed, REQUIRES(std::is_signed_v<Signed>)>
-    wide_int(Signed s) noexcept : wide_int(static_cast<std::make_unsigned_t<Signed>>(s < 0 ? -s : s)) {
-        if (s < 0) negative();
-    }
-
-    template<typename Signed, REQUIRES(std::is_signed_v<Signed>)>
-    wide_int& operator=(Signed s) noexcept {
-        return *new (this) wide_int(s);
-    }
 
     template<size_t M, bool R>
     wide_int(wide_int<M, R> const& rhs) noexcept : wide_int() {
@@ -95,6 +74,22 @@ struct wide_int {
         if (rhs.is_negative() && BYTES > rhs.BYTES) {
             std::memset(bytes + rhs.BYTES, 0xFF, BYTES - rhs.BYTES);
         }
+    }
+
+    template<typename Signed, REQUIRES(std::is_signed_v<Signed>)>
+    wide_int(Signed s) noexcept : 
+        wide_int(static_cast<std::make_unsigned_t<Signed>>(s < 0 ? -s : s)) {
+        if (s < 0) negative();
+    }
+
+    template<typename Unsigned, REQUIRES(std::is_unsigned_v<Unsigned>)>
+    wide_int& operator=(Unsigned u) noexcept {
+        return *new (this) wide_int(u);
+    }
+
+    template<typename Signed, REQUIRES(std::is_signed_v<Signed>)>
+    wide_int& operator=(Signed s) noexcept {
+        return *new (this) wide_int(s);
     }
 
     template<size_t M, bool R>
@@ -174,6 +169,17 @@ struct wide_int {
         return ret;
     }
 
+#define MUL_DIV_OP(op, ex) \
+wide_int& operator op##=(wide_int const& rhs) noexcept(ex) { \
+    return *this = *this op rhs; \
+}
+
+MUL_DIV_OP(*, true)
+MUL_DIV_OP(/, false)
+MUL_DIV_OP(%, false)
+
+#undef MUL_DIV_OP
+
 #define BIT_OP(op) \
 wide_int& operator op##=(wide_int const& rhs) noexcept { \
     for (size_t i = 0; i < BYTES; ++i) \
@@ -186,17 +192,6 @@ BIT_OP(|)
 BIT_OP(^)
 
 #undef BIT_OP
-
-#define SCALE_OP(op, ex) \
-wide_int& operator op##=(wide_int const& rhs) noexcept(ex) { \
-    return *this = *this op rhs; \
-}
-
-SCALE_OP(*, true)
-SCALE_OP(/, false)
-SCALE_OP(%, false)
-
-#undef SCALE_OP
 
     void shiftLeftBytes(size_t rhs) noexcept {
         if (!rhs || !*this) return;
@@ -257,69 +252,88 @@ SHIFT_OP(>>)
 
 #undef SHIFT_OP
 
-    int compare(wide_int const& rhs) const noexcept {
-        if (int cmp = is_negative() - rhs.is_negative()) return -cmp;
-        for (size_t i = BYTES - 1; /* i >= 0 */ ~i; --i) {
-            if (int cmp = bytes[i] - rhs.bytes[i]) return cmp;
+    wide_int abs() const noexcept {
+        if (is_negative())  return operator-();
+        else                return operator+();
+    }
+    
+    static wide_int exp2(size_t n) {
+        wide_int ret;
+        if (n < ret.BITS) {
+            ret.bytes[n >> 3] = 1 << (n & 7);
         }
-        return 0;
+        return ret;
     }
     
     size_t log2() const {
-
-const static char table[] = 
-"-011222233333333444444444444444455555555555555555555555555555555"
-"6666666666666666666666666666666666666666666666666666666666666666"
-"7777777777777777777777777777777777777777777777777777777777777777"
-"7777777777777777777777777777777777777777777777777777777777777777"
-;
         for (size_t i = BYTES - 1; /* i >= 0 */ ~i; --i) {
             if (bytes[i]) {
-                return (i << 3) + table[bytes[i]] - '0';
+                return (i << 3) + log2byte(bytes[i]);
             }
         }
         throw std::invalid_argument("0.log2() is invalid");
     }
 
-    wide_int abs() const noexcept {
-        if (is_negative())  return operator-();
-        else                return operator+();
-    }
+    struct div_t {
+        wide_int quot, rem;
+    };
 
     div_t div(wide_int rhs) const {
         if (!rhs) throw std::invalid_argument("divided by 0");
         if (!*this) return {0, 0};
-        switch (is_negative() + rhs.is_negative()) {
-            case 1: return abs().div(rhs.abs()).negative();
-            case 2: return abs().div(rhs.abs());
+        if (SIGNED) {
+            if (is_negative()) {
+                if (rhs.is_negative()) {
+                    div_t d = operator-().div(-rhs);
+                    d.rem.negative();
+                    return d;
+                } else {
+                    div_t d = operator-().div(rhs);
+                    d.quot.negative();
+                    d.rem.negative();
+                    return d;
+                }
+            } else if (rhs.is_negative()) {
+                div_t d = div(-rhs);
+                d.quot.negative();
+                return d;
+            }
         }
         size_t rbits = rhs.log2();
         wide_int rem = *this;
         wide_int qout;
-        while (rem > rhs) {
+        int cmp;
+        while ((cmp = rem.compare(rhs)) > 0 /*rem > rhs*/) {
             size_t bits = rem.log2();
-            size_t overhead = bits - rbits;
-            wide_int q = rhs << overhead;
-            if (q > rem && overhead) {
-                --overhead;
+            size_t shift = bits - rbits;
+            wide_int q = rhs << shift;
+            if (q > rem && shift) {
+                --shift;
                 q >>= 1;
             }
             rem -= q;
-            qout += wide_int(1) << overhead;
+            qout += exp2(shift);
         }
-        if (rem == rhs) {
+        if (cmp == 0 /*rem == rhs*/) {
             ++qout;
             rem = 0;
         }
         return {qout, rem};
     }
 
+    explicit operator bool() const noexcept {
+        for (size_t i = 0; i < BYTES; ++i) {
+            if (bytes[i]) return true;
+        }
+        return false;
+    }
+    
     byte to_byte() const noexcept {
         return bytes[0];
     }
 
     std::string to_string(uint base = 10) const {
-        if (base < 2 || base > 36) throw std::invalid_argument("invalid base");
+		int_conv::base::assertValid(base);
         std::string buf;
         div_t d = {*this, 0};
         do {
@@ -331,7 +345,7 @@ const static char table[] =
     }
 
     static wide_int from_string(std::string s, uint base = 10) {
-        if (base < 2 || base > 36) throw std::invalid_argument("invalid base");
+		int_conv::base::assertValid(base);
         if (s.length() == 0) throw std::invalid_argument("invalid string");
         if (s[0] == '+') s = s.substr(1);
         if (s[0] == '-') return from_string(s.substr(1), base).negative();
@@ -345,6 +359,13 @@ const static char table[] =
         return ret;
     }
 
+    int compare(wide_int const& rhs) const noexcept {
+        if (int cmp = is_negative() - rhs.is_negative()) return -cmp;
+        for (size_t i = BYTES - 1; /* i >= 0 */ ~i; --i) {
+            if (int cmp = bytes[i] - rhs.bytes[i]) return cmp;
+        }
+        return 0;
+    }
 };
 
 #define BINARY_OP(op) \
@@ -378,6 +399,12 @@ std::common_type_t<wide_int<N, S>, wide_int<M, R>>
     return ret;
 }
 
+template<size_t N, bool S, size_t M, bool R>
+typename std::common_type_t<wide_int<N, S>, wide_int<M, R>>::div_t
+    div(wide_int<N, S> lhs, wide_int<M, R> rhs) {
+    std::common_type_t<wide_int<N, S>, wide_int<M, R>> ret = lhs;
+    return ret.div(rhs);
+}
 
 template<size_t N, bool S, size_t M, bool R>
 std::common_type_t<wide_int<N, S>, wide_int<M, R>> 
@@ -411,13 +438,6 @@ COMPARE_OP(<=)
 COMPARE_OP(>=)
 
 #undef COMPARE_OP
-
-template<size_t N, bool S, size_t M, bool R>
-typename std::common_type_t<wide_int<N, S>, wide_int<M, R>>::div_t
-    div(wide_int<N, S> lhs, wide_int<M, R> rhs) {
-    std::common_type_t<wide_int<N, S>, wide_int<M, R>> ret = lhs;
-    return ret.div(rhs);
-}
 
 using int128 = wide_int<128, true>;
 using int256 = wide_int<256, true>;
@@ -461,5 +481,6 @@ int main() {
     using namespace yao_math;
     using yao_math::byte;
     using namespace yao_math::wide_int_literals;
-    cout << (111111111111111111111111111111111111111111111111111111111111111111111_uint256).to_string(16);
+    cout << (111111111111111111111111111111111111111111111111111111111111111111111_uint256).to_string(16) << endl;
+    cout << int256((int)0x8000'0000).to_string(16) << endl;
 }
