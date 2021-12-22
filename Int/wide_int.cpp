@@ -6,6 +6,7 @@
 #include <cstdint>
 #include <stdexcept>
 #include <type_traits>
+#include <iostream>
 
 #include "../yao_math.h"
 #include "int_conv.cpp"
@@ -24,6 +25,11 @@ namespace yao_math {
         return table[b] - '0';
     }
 
+    template<typename T>
+    constexpr bool is_uint_v = std::is_integral_v<T> && std::is_unsigned_v<T>;
+    template<typename T>
+    constexpr bool is_int_v = std::is_integral_v<T> && std::is_signed_v<T>;
+
     template<size_t N, bool S>
     struct wide_int;
 }
@@ -36,7 +42,7 @@ struct common_type<yao_math::wide_int<N, S>,
 };
 }
 
-#define REQUIRES(cond) ::std::enable_if_t<cond, bool> = true
+#define REQUIRES(cond) std::enable_if_t<cond, bool> = true
 
 namespace yao_math {
 
@@ -55,39 +61,34 @@ struct wide_int {
         std::memset(bytes, 0, BYTES);
     }
 
-    template<typename Unsigned, REQUIRES(std::is_unsigned_v<Unsigned>)>
+    template<typename Unsigned, REQUIRES(is_uint_v<Unsigned>)>
     wide_int(Unsigned u) noexcept : wide_int() {
-        if (!u) return; 
-        size_t n = std::min(BYTES, sizeof u);
-        for (size_t i = 0; i < n; ++i) {
-            bytes[i] = u & 0xFF;
-            u >>= 8;
-            if (!u) break;
+        std::memcpy(bytes, &u, std::min(BYTES, sizeof u));
+    }
+
+    template<typename Signed, REQUIRES(is_int_v<Signed>)>
+    wide_int(Signed s) noexcept : 
+        wide_int(static_cast<std::make_unsigned_t<Signed>>(s)) {
+        size_t size = sizeof s;
+        if (s < 0 && BYTES > size) {
+            std::memset(bytes + size, 0xFF, BYTES - size);
         }
     }
 
     template<size_t M, bool R>
     wide_int(wide_int<M, R> const& rhs) noexcept : wide_int() {
-        if (!rhs) return; 
-        size_t n = std::min(BYTES, rhs.BYTES);
-        std::memcpy(bytes, rhs.bytes, n);
+        std::memcpy(bytes, rhs.bytes, std::min(BYTES, rhs.BYTES));
         if (rhs.is_negative() && BYTES > rhs.BYTES) {
             std::memset(bytes + rhs.BYTES, 0xFF, BYTES - rhs.BYTES);
         }
     }
 
-    template<typename Signed, REQUIRES(std::is_signed_v<Signed>)>
-    wide_int(Signed s) noexcept : 
-        wide_int(static_cast<std::make_unsigned_t<Signed>>(s < 0 ? -s : s)) {
-        if (s < 0) negative();
-    }
-
-    template<typename Unsigned, REQUIRES(std::is_unsigned_v<Unsigned>)>
+    template<typename Unsigned, REQUIRES(is_uint_v<Unsigned>)>
     wide_int& operator=(Unsigned u) noexcept {
         return *new (this) wide_int(u);
     }
 
-    template<typename Signed, REQUIRES(std::is_signed_v<Signed>)>
+    template<typename Signed, REQUIRES(is_int_v<Signed>)>
     wide_int& operator=(Signed s) noexcept {
         return *new (this) wide_int(s);
     }
@@ -120,10 +121,6 @@ struct wide_int {
     wide_int operator-() const noexcept {
         wide_int ret = *this;
         return ret.negative();
-    }
-
-    bool highest_bit() const noexcept {
-        return bytes[BYTES - 1] >> 7;
     }
 
     bool is_negative() const noexcept {
@@ -170,13 +167,13 @@ struct wide_int {
     }
 
 #define MUL_DIV_OP(op, ex) \
-wide_int& operator op##=(wide_int const& rhs) noexcept(ex) { \
+wide_int& operator op##=(wide_int const& rhs) ex { \
     return *this = *this op rhs; \
 }
 
-MUL_DIV_OP(*, true)
-MUL_DIV_OP(/, false)
-MUL_DIV_OP(%, false)
+MUL_DIV_OP(*, noexcept)
+MUL_DIV_OP(/, )
+MUL_DIV_OP(%, )
 
 #undef MUL_DIV_OP
 
@@ -194,7 +191,7 @@ BIT_OP(^)
 #undef BIT_OP
 
     void shiftLeftBytes(size_t rhs) noexcept {
-        if (!rhs || !*this) return;
+        if (!rhs) return;
         rhs = std::min(rhs, BYTES);
         memmove(bytes + rhs, bytes, BYTES - rhs);
         memset(bytes, 0, rhs);
@@ -216,7 +213,7 @@ BIT_OP(^)
     }
 
     void shiftRightBytes(size_t rhs) noexcept {
-        if (!rhs || !*this) return;
+        if (!rhs) return;
         rhs = std::min(rhs, BYTES);
         memmove(bytes, bytes + rhs, BYTES - rhs);
         memset(bytes + BYTES - rhs, is_negative() ? 0xFF : 0, rhs);
@@ -328,17 +325,43 @@ SHIFT_OP(>>)
         return false;
     }
     
+    bool highest_bit() const noexcept {
+        return bytes[BYTES - 1] >> 7;
+    }
+
     byte to_byte() const noexcept {
         return bytes[0];
     }
 
-    std::string to_string(uint base = 10) const {
+    static wide_int from_byte(byte b) noexcept {
+        wide_int ret;
+        ret.bytes[0] = b;
+        return ret;
+    }
+
+    template<typename Integral, REQUIRES(std::is_integral_v<Integral>)>
+    Integral to_integral() const noexcept {
+        static_assert(!std::is_same_v<Integral, bool>, "use operator bool() instead");
+        Integral integral;
+        memcpy(&integral, bytes, std::min(BYTES, sizeof integral));
+        return integral;
+    }
+
+    wide_int<BITS, false> to_unsigned() const noexcept {
+        return operator+();
+    }
+
+    wide_int<BITS, true> to_signed() const noexcept {
+        return operator+();
+    }
+
+    std::string to_string(uint base = 10, bool uppercase = false) const {
 		int_conv::base::assertValid(base);
         std::string buf;
-        div_t d = {*this, 0};
+        div_t d = {abs(), 0};
         do {
             d = d.quot.div(base);
-            buf += int_conv::base::to_char(d.rem.abs().to_byte(), base);
+            buf += int_conv::base::to_char(d.rem.to_byte(), base, uppercase);
         } while (d.quot);
         if (is_negative()) buf += '-';
         return {buf.rbegin(), buf.rend()};
@@ -357,6 +380,71 @@ SHIFT_OP(>>)
             ret += (uint) num;
         }
         return ret;
+    }
+
+    friend std::ostream& operator<<(std::ostream& os, wide_int rhs) noexcept {
+        int base = 10;
+        std::ios::fmtflags f = os.flags();
+        if (f & std::ios::oct) base = 8;
+        if (f & std::ios::dec) base = 10;
+        if (f & std::ios::hex) base = 16;
+        bool sb = false;
+        if (f & std::ios::showbase) sb = true; 
+        if (base == 8) {
+            if (sb && rhs) os << '0'; 
+            return os << rhs.to_unsigned().to_string(base);
+        }
+        if (base == 16) {
+            if (sb) os << "0x";
+            return os << rhs.to_unsigned().to_string(base, f & std::ios::uppercase);
+        }
+        if ((f & std::ios::showpos) && !rhs.is_negative()) os << '+';
+        return os << rhs.to_string(base);
+    }
+
+    friend std::istream& operator>>(std::istream& is, wide_int& rhs) noexcept {
+        int base = 10;
+        std::ios::fmtflags f = is.flags() & std::ios::basefield;
+        if (f & std::ios::oct) base = 8;
+        if (f & std::ios::dec) base = 10;
+        if (f & std::ios::hex) base = 16;
+        bool neg = false;
+        wide_int ret;
+        if (is) {
+            char ch = is.get();
+            switch (ch) {
+                case '-': neg = true;
+                case '+': break;
+                default: is.unget();
+            }
+        }
+        if (is && base == 16) {
+            char ch1 = is.get();
+            if (is && ch1 == '0') {
+                char ch2 = is.get();
+                if (!(ch2 == 'x' || ch2 == 'X')) {
+                    is.unget();
+                }
+            } else {
+                is.unget();
+            }
+        }
+        size_t read = 0;
+        while (is) {
+            char ch = is.get();
+            int num = int_conv::base::from_char(ch, base);
+            if (num < 0) break;
+            ++read;
+            ret *= base;
+            ret += (uint) num;
+        }
+        if (read) {
+            if (neg) ret.negative();
+            rhs = ret;    
+        } else {
+            is.setstate(std::ios::failbit);
+        }
+        return is;
     }
 
     int compare(wide_int const& rhs) const noexcept {
@@ -439,48 +527,57 @@ COMPARE_OP(>=)
 
 #undef COMPARE_OP
 
-using int128 = wide_int<128, true>;
-using int256 = wide_int<256, true>;
-using int512 = wide_int<512, true>;
-using int1024 = wide_int<1024, true>;
-using uint128 = wide_int<128, false>;
-using uint256 = wide_int<256, false>;
-using uint512 = wide_int<512, false>;
-using uint1024 = wide_int<1024, false>;
+#define ALIAS_SIGNED(N) \
+using int##N = wide_int<N, true>; \
+inline namespace literals { \
+inline namespace wide_int_literals { \
+int##N operator"" _int##N(const char* s) { \
+    return int##N::from_string(s); \
+} \
+} \
+} 
 
-inline namespace literals {
-inline namespace wide_int_literals {
+ALIAS_SIGNED(128)
+ALIAS_SIGNED(256)
+ALIAS_SIGNED(512)
+ALIAS_SIGNED(1024)
+ALIAS_SIGNED(2048)
+ALIAS_SIGNED(4096)
 
-#define LITERAL(type) \
-type operator"" _##type(const char* s) { \
-    return type::from_string(s); \
-}
+#undef ALIAS_SIGNED
 
-LITERAL(int128)
-LITERAL(int256)
-LITERAL(int512)
-LITERAL(int1024)
+#define ALIAS_UNSIGNED(N) \
+using uint##N = wide_int<N, false>; \
+inline namespace literals { \
+inline namespace wide_int_literals { \
+uint##N operator"" _uint##N(const char* s) { \
+    return uint##N::from_string(s); \
+} \
+} \
+} 
 
-LITERAL(uint128)
-LITERAL(uint256)
-LITERAL(uint512)
-LITERAL(uint1024)
+ALIAS_UNSIGNED(128)
+ALIAS_UNSIGNED(256)
+ALIAS_UNSIGNED(512)
+ALIAS_UNSIGNED(1024)
+ALIAS_UNSIGNED(2048)
+ALIAS_UNSIGNED(4096)
 
-#undef LITERAL
+#undef ALIAS_UNSIGNED
 
-}
-}
 }
 
 #undef REQUIRES
 
 #include <iostream>
+#include <iomanip>
 
 int main() {
     using namespace std;
     using namespace yao_math;
     using yao_math::byte;
     using namespace yao_math::wide_int_literals;
-    cout << (111111111111111111111111111111111111111111111111111111111111111111111_uint256).to_string(16) << endl;
-    cout << int256((int)0x8000'0000).to_string(16) << endl;
+    cout << hex << (111111111111111111111111111111111111111111111111111111111111111111111_uint256) << endl;
+    cout << hex << uppercase << wide_int<128, true>((int)0x8000'0000) << endl;
+    int128(false);
 }

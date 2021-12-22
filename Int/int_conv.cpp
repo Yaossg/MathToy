@@ -22,21 +22,21 @@ namespace yao_math::int_conv {
 			if (num < base) return num;
 			else return -1;
 		}
-		char to_char(int num, int base = 10) {
+		char to_char(int num, int base = 10, bool uppercase = false) {
 			assertValid(base);
 			if (num < 0 || num >= base) throw std::invalid_argument("invalid num");
 			if (num < 10) return num + '0';
-			else return num + 'A' - 10;
+			else return num + (uppercase ? 'A' : 'a') - 10;
 		}
 	}
 
 	template<typename UIntT, std::enable_if_t<std::is_unsigned_v<UIntT>, bool> = true>
-	void to_string(char* cp, UIntT val, int base = 10) {
+	void to_string(char* cp, UIntT val, int base = 10, bool uppercase = false) {
 		if (cp == nullptr) throw std::invalid_argument("nullptr");
 		base::assertValid(base);
 		if (val == 0) *cp = '0';
 		while (val > 0) {
-			*cp++ = base::to_char(val % base, base);
+			*cp++ = base::to_char(val % base, base, uppercase);
 			val /= base;
 		}
 	}
