@@ -3,9 +3,11 @@
 #include <stdexcept>
 #include <type_traits>
 #include <iostream>
+#include <random>
 
 #include "../yao_math.h"
 #include "int_base.cpp"
+#include "fpbits.cpp"
 
 namespace yao_math {
     using byte = unsigned char;
@@ -122,11 +124,6 @@ struct wide_int {
         return SIGNED && highest_bit();
     }
 
-    template<typename Integral, REQUIRES(std::is_integral_v<Integral>)>
-    wide_int& operator+=(Integral rhs) noexcept {
-        return operator+=(wide_int<sizeof rhs << 3, std::is_signed_v<Integral>>(rhs));
-    }
-
     wide_int& operator+=(wide_int const& rhs) noexcept {
         unsigned carry = 0;
         for (size_t i = 0; i < BYTES; ++i) {
@@ -230,6 +227,14 @@ BIT_OP(^)
         }
         if(is_negative()) {
             bytes[BYTES - rbyte - 1] |= mask << (8 - rbit);
+        }
+        return *this;
+    }
+
+    wide_int& shift(int rhs) noexcept {
+        if (rhs) {
+            if (rhs > 0) operator<<=(rhs);
+            if (rhs < 0) operator>>=(-rhs);
         }
         return *this;
     }
@@ -343,6 +348,17 @@ SHIFT_OP(>>)
         return integral;
     }
 
+    template<typename FP, REQUIRES(std::is_floating_point_v<FP>)>
+    static wide_int from_float(FP fp) noexcept {
+        FPBits<FP> fpbits(fp);
+        wide_int ret = fpbits.full_fraction();
+        if (ret) {
+            ret.shift(fpbits.partial_log2());
+            if (fpbits.sign) ret.negative();
+        }
+        return ret;
+    }
+
     wide_int<BITS, false> to_unsigned() const noexcept {
         return operator+();
     }
@@ -361,6 +377,45 @@ SHIFT_OP(>>)
         } while (d.quot);
         if (is_negative()) buf += '-';
         return {buf.rbegin(), buf.rend()};
+    }
+
+    template<typename FP, REQUIRES(std::is_floating_point_v<FP>)>
+    FP to_float() const noexcept {
+        FPBits<FP> fpbits;
+        int exp = log2();
+        fpbits.exp2(exp);
+        fpbits.fraction = operator+().shift(-exp + fpbits.FRACTION).template to_integral<bitfield>();
+        fpbits.sign = is_negative();
+        return fpbits;
+    }
+
+    template<typename G>
+    static wide_int random(G& g, wide_int upper) {
+        int cmp = upper.compare(0);
+        if (cmp < 0) throw std::invalid_argument("negative upper");
+        if (cmp == 0) return 0;
+        wide_int ret;
+        size_t bits = upper.log2();
+        size_t bytes = bits >> 3;
+        size_t rbits = (bits & 7) + 1;
+        size_t mask = (1 << rbits) - 1;
+        using dist = std::uniform_int_distribution<byte>;
+        dist bd{0, 255};
+        dist md{0, (byte)mask};
+        do {
+            for (size_t i = 0; i < bytes; ++i) {
+                ret.bytes[i] = bd(g);
+            }
+            if (rbits) {
+                ret.bytes[bytes] = md(g);
+            }
+        } while (ret > upper);
+        return ret;
+    }
+
+    template<typename G>
+    static wide_int random(G g, wide_int lower, wide_int upper) {
+        return lower + random(g, upper - lower);
     }
 
     static wide_int from_string(const char* cp, int base = 10) {
@@ -480,6 +535,9 @@ SHIFT_OP(>>)
     }
 };
 
+template<typename Integral, REQUIRES(std::is_integral_v<Integral>)>
+wide_int(Integral) -> wide_int<sizeof(Integral) << 3, std::is_signed_v<Integral>>;
+
 #define BINARY_OP(op) \
 template<size_t N, bool S, size_t M, bool R> \
 std::common_type_t<wide_int<N, S>, wide_int<M, R>> \
@@ -587,11 +645,12 @@ ALIAS(8192)
 
 #include <iostream>
 #include <iomanip>
+#include <map>
 
 int main() {
     using namespace std;
     using namespace yao_math;
     using yao_math::byte;
     using namespace yao_math::wide_int_literals;
-    cout << hex << uppercase << 070_uL128;
+    
 }
