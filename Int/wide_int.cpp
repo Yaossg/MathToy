@@ -183,11 +183,13 @@ BIT_OP(^)
 
 #undef BIT_OP
 
-    void shiftLeftBytes(size_t rhs) noexcept {
-        if (!rhs) return;
-        rhs = std::min(rhs, BYTES);
-        memmove(bytes + rhs, bytes, BYTES - rhs);
-        memset(bytes, 0, rhs);
+    wide_int& shiftLeftBytes(size_t rhs) noexcept {
+        if (rhs) {
+            rhs = std::min(rhs, BYTES);
+            memmove(bytes + rhs, bytes, BYTES - rhs);
+            memset(bytes, 0, rhs);
+        }
+        return *this;
     }
 
     wide_int& operator<<=(size_t rhs) noexcept {
@@ -205,11 +207,13 @@ BIT_OP(^)
         return *this;
     }
 
-    void shiftRightBytes(size_t rhs) noexcept {
-        if (!rhs) return;
-        rhs = std::min(rhs, BYTES);
-        memmove(bytes, bytes + rhs, BYTES - rhs);
-        memset(bytes + BYTES - rhs, is_negative() ? 0xFF : 0, rhs);
+    wide_int& shiftRightBytes(size_t rhs) noexcept {
+        if (rhs) {
+            rhs = std::min(rhs, BYTES);
+            memmove(bytes, bytes + rhs, BYTES - rhs);
+            memset(bytes + BYTES - rhs, is_negative() ? 0xFF : 0, rhs);
+        }
+        return *this;
     }
 
     wide_int& operator>>=(size_t rhs) noexcept {
@@ -641,6 +645,27 @@ ALIAS(8192)
 
 }
 
+namespace std {
+    template<size_t N>
+    struct hash<yao_math::wide_int<N, false>> {
+        size_t operator()(yao_math::wide_int<N, false> const& rhs) const noexcept {
+            yao_math::wide_int<N, false> lhs = rhs;
+            size_t ret = lhs.template to_integral<size_t>();
+            while (lhs.shiftRightBytes(sizeof(size_t))) {
+                ret ^= lhs.template to_integral<size_t>() << 1;
+            }
+            return ret;
+        }
+    };
+    template<size_t N>
+    struct hash<yao_math::wide_int<N, true>> {
+        hash<yao_math::wide_int<N, false>> hasher;
+        size_t operator()(yao_math::wide_int<N, true> const& rhs) const noexcept {
+            return hasher(rhs);
+        }
+    };
+}
+
 #undef REQUIRES
 
 #include <iostream>
@@ -652,5 +677,5 @@ int main() {
     using namespace yao_math;
     using yao_math::byte;
     using namespace yao_math::wide_int_literals;
-    
+    cout << 1000000000000000000000000000000000000000000000000000000000_uL256 << endl;
 }
