@@ -646,23 +646,10 @@ ALIAS(8192)
 }
 
 namespace std {
-    template<size_t N>
-    struct hash<yao_math::wide_int<N, false>> {
-        size_t operator()(yao_math::wide_int<N, false> const& rhs) const noexcept {
-            yao_math::wide_int<N, false> lhs = rhs;
-            size_t ret = 0;
-            do {
-                // from boost::hash_combine()
-                ret ^= lhs.template to_integral<size_t>() + 0x9e3779b9 + (ret << 6) + (ret >> 2);
-            } while (lhs.shiftRightBytes(sizeof(size_t)));
-            return ret;
-        }
-    };
-    template<size_t N>
-    struct hash<yao_math::wide_int<N, true>> {
-        hash<yao_math::wide_int<N, false>> hasher;
-        size_t operator()(yao_math::wide_int<N, true> const& rhs) const noexcept {
-            return hasher(rhs);
+    template<size_t N, bool S>
+    struct hash<yao_math::wide_int<N, S>> {
+        size_t operator()(yao_math::wide_int<N, S> const& rhs) const noexcept {
+           return rhs.template to_integral<size_t>();
         }
     };
 }
