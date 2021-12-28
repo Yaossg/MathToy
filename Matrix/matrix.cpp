@@ -34,7 +34,7 @@ class matrix {
 public:
     using element_t = E;
     explicit matrix(size_t m, std::function<E(size_t, size_t)> gen = zero): matrix(m, m, gen) {}
-    matrix(size_t m, size_t n, std::function<E(size_t, size_t)> gen = zero): m(m), n(n) {
+    explicit matrix(size_t m, size_t n, std::function<E(size_t, size_t)> gen = zero): m(m), n(n) {
         if (!m || !n) throw invalid_matrix("empty matrix is forbidden"); 
         e.resize(m * n);
         for (size_t i = 0; i < m; ++i) for (size_t j = 0; j < n; ++j) at(i, j) = gen(i, j);

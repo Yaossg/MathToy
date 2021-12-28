@@ -650,10 +650,11 @@ namespace std {
     struct hash<yao_math::wide_int<N, false>> {
         size_t operator()(yao_math::wide_int<N, false> const& rhs) const noexcept {
             yao_math::wide_int<N, false> lhs = rhs;
-            size_t ret = lhs.template to_integral<size_t>();
-            while (lhs.shiftRightBytes(sizeof(size_t))) {
-                ret ^= lhs.template to_integral<size_t>() << 1;
-            }
+            size_t ret = 0;
+            do {
+                // from boost::hash_combine()
+                ret ^= lhs.template to_integral<size_t>() + 0x9e3779b9 + (ret << 6) + (ret >> 2);
+            } while (lhs.shiftRightBytes(sizeof(size_t)));
             return ret;
         }
     };
@@ -677,5 +678,5 @@ int main() {
     using namespace yao_math;
     using yao_math::byte;
     using namespace yao_math::wide_int_literals;
-    cout << 1000000000000000000000000000000000000000000000000000000000_uL256 << endl;
+    cout << hash<uint256>{}(1000000000000000000000000000000000000000000000000000000000_uL256) << endl;
 }
