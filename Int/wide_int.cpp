@@ -12,20 +12,20 @@
 namespace yao_math {
     using byte = unsigned char;
 
-    size_t log2byte(byte b) {
-        const static char table[] = 
-            "-011222233333333444444444444444455555555555555555555555555555555"
+    constexpr size_t log2byte(byte b) {
+        if (b == 0) throw std::invalid_argument("log2byte(0) is invalid");
+        else return
+            " 011222233333333444444444444444455555555555555555555555555555555"
             "6666666666666666666666666666666666666666666666666666666666666666"
             "7777777777777777777777777777777777777777777777777777777777777777"
             "7777777777777777777777777777777777777777777777777777777777777777"
-            ;
-        return table[b] - '0';
+            [b] - '0';
     }
 
     template<typename T>
-    constexpr bool is_uint_v = std::is_integral_v<T> && std::is_unsigned_v<T>;
-    template<typename T>
     constexpr bool is_sint_v = std::is_integral_v<T> && std::is_signed_v<T>;
+    template<typename T>
+    constexpr bool is_uint_v = std::is_integral_v<T> && std::is_unsigned_v<T>;
 
     template<size_t N, bool S>
     struct wide_int;
@@ -377,7 +377,7 @@ SHIFT_OP(>>)
         div_t d = {abs(), 0};
         do {
             d = d.quot.div(base);
-            buf += int_base::to_char(d.rem.to_byte(), base, uppercase);
+            buf += int_base::to_char_raw(d.rem.to_byte(), base, uppercase);
         } while (d.quot);
         if (is_negative()) buf += '-';
         return {buf.rbegin(), buf.rend()};
@@ -432,7 +432,7 @@ SHIFT_OP(>>)
         }
         wide_int ret;
         while (char ch = *cp++) {
-            int num = int_base::from_char(ch, base);
+            int num = int_base::from_char_raw(ch, base);
             if (num < 0) throw std::invalid_argument("invalid string");
             ret *= base;
             ret += (unsigned) num;
@@ -461,7 +461,7 @@ SHIFT_OP(>>)
         } else --cp;
         wide_int ret;
         while (char ch = *cp++) {
-            int num = int_base::from_char(ch, base);
+            int num = int_base::from_char_raw(ch, base);
             if (num < 0) throw std::invalid_argument("invalid string");
             ret *= base;
             ret += (unsigned) num;
@@ -515,7 +515,7 @@ SHIFT_OP(>>)
         size_t read = 0;
         while (is) {
             char ch = is.get();
-            int num = int_base::from_char(ch, base);
+            int num = int_base::from_char_raw(ch, base);
             if (num < 0) break;
             ++read;
             ret *= base;
