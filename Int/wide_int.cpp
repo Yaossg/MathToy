@@ -43,7 +43,6 @@ struct common_type<yao_math::wide_int<N, S>,
 
 namespace yao_math {
 
-
 template<size_t N, bool S>
 struct wide_int {
     static_assert(N, "N must not be 0");
@@ -499,25 +498,24 @@ SHIFT_OP(>>)
         bool neg = false;
         wide_int ret;
         if (is) {
-            char ch = is.get();
-            switch (ch) {
+            switch (is.get()) {
                 case '-': neg = true;
                 case '+': break;
                 default: is.unget();
             }
         }
         if (is && base == 16) {
-            if (is && is.get() == '0') {
-                char ch2 = is.get();
-                if (!(ch2 == 'x' || ch2 == 'X')) is.unget();
+            if (is.get() == '0') {
+                char ch = is.get();
+                if (!(ch == 'x' || ch == 'X')) is.unget();
             } else is.unget();
         }
-        size_t read = 0;
+        bool read = false;
         while (is) {
             char ch = is.get();
             int num = int_base::from_char_raw(ch, base);
             if (num < 0) break;
-            ++read;
+            read = true;
             ret *= base;
             ret += (unsigned) num;
         }
