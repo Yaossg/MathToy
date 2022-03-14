@@ -10,12 +10,6 @@ namespace yao_math::int_base {
 	void assertValid(int base) {
 		if (isInvalid(base)) throw std::invalid_argument("invalid base");
 	}
-	int from_char(char ch, int base = 10) {
-		assertValid(base);
-		int ret = from_char_raw(ch, base);
-		if (ret < 0) throw std::invalid_argument("invalid num");
-		return ret;
-	}
 	int from_char_raw(char ch, int base = 10) {
 		int num;
 		if (isdigit(ch)) num = ch - '0';
@@ -25,13 +19,19 @@ namespace yao_math::int_base {
 		if (num < base) return num;
 		else return -1;
 	}
-	char to_char(int num, int base = 10, bool uppercase = false) {
+	int from_char(char ch, int base = 10) {
 		assertValid(base);
-		if (num < 0 || num >= base) throw std::invalid_argument("invalid num");
-		return to_char_raw(num, base, uppercase);
+		int ret = from_char_raw(ch, base);
+		if (ret < 0) throw std::invalid_argument("invalid num");
+		return ret;
 	}
 	char to_char_raw(int num, int base = 10, bool uppercase = false) {
 		if (num < 10) return num + '0';
 		else return num - 10 + (uppercase ? 'A' : 'a');
+	}
+	char to_char(int num, int base = 10, bool uppercase = false) {
+		assertValid(base);
+		if (num < 0 || num >= base) throw std::invalid_argument("invalid num");
+		return to_char_raw(num, base, uppercase);
 	}
 }

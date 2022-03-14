@@ -643,14 +643,12 @@ ALIAS(8192)
 
 }
 
-namespace std {
-    template<size_t N, bool S>
-    struct hash<yao_math::wide_int<N, S>> {
-        size_t operator()(yao_math::wide_int<N, S> const& rhs) const noexcept {
-           return rhs.template to_integral<size_t>();
-        }
-    };
-}
+template<size_t N, bool S>
+struct std::hash<yao_math::wide_int<N, S>> {
+    size_t operator()(yao_math::wide_int<N, S> const& rhs) const noexcept {
+        return rhs.template to_integral<size_t>();
+    }
+};
 
 #undef REQUIRES
 
