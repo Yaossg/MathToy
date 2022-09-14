@@ -4,6 +4,8 @@
 #include <type_traits>
 #include <iostream>
 #include <random>
+#include <bit>
+#include <array>
 
 #include "../yao_math.h"
 #include "int_base.cpp"
@@ -20,6 +22,22 @@ namespace yao_math {
             "7777777777777777777777777777777777777777777777777777777777777777"
             "7777777777777777777777777777777777777777777777777777777777777777"
             [b] - '0';
+    }
+
+    constexpr void memset(byte *dst, byte val, size_t size) noexcept {
+        if constexpr (std::is_constant_evaluated()) {
+            for (size_t i = 0; i < size; ++i) dst[i] = val;
+        } else {
+            std::memset(dst, val, size);
+        }
+    }
+
+    constexpr void memcpy(byte *dst, const byte *src, size_t size) noexcept {
+        if constexpr (std::is_constant_evaluated()) {
+            for (size_t i = 0; i < size; ++i) dst[i] = src[i];
+        } else {
+            std::memcpy(dst, src, size);
+        }
     }
 
     template<typename T>
@@ -39,8 +57,6 @@ struct common_type<yao_math::wide_int<N, S>,
 };
 }
 
-#define REQUIRES(cond) std::enable_if_t<cond, bool> = true
-
 namespace yao_math {
 
 template<size_t N, bool S>
@@ -53,77 +69,78 @@ struct wide_int {
 
     byte bytes[BYTES];
 
-    wide_int() noexcept {
-        std::memset(bytes, 0, BYTES);
+    constexpr wide_int() noexcept {
+        memset(bytes, 0, BYTES);
     }
 
-    template<typename Unsigned, REQUIRES(is_uint_v<Unsigned>)>
-    wide_int(Unsigned u) noexcept : wide_int() {
-        std::memcpy(bytes, &u, std::min(BYTES, sizeof u));
+    template<typename Unsigned> requires is_uint_v<Unsigned>
+    constexpr wide_int(Unsigned u) noexcept : wide_int() {
+        auto buf = std::bit_cast<std::array<byte, std::min(BYTES, sizeof u)>>(u);
+        memcpy(bytes, buf.data(), buf.size());
     }
 
-    template<typename Signed, REQUIRES(is_sint_v<Signed>)>
-    wide_int(Signed s) noexcept : 
+    template<typename Signed> requires is_sint_v<Signed>
+    constexpr wide_int(Signed s) noexcept : 
         wide_int(static_cast<std::make_unsigned_t<Signed>>(s)) {
         size_t size = sizeof s;
         if (s < 0 && BYTES > size) {
-            std::memset(bytes + size, 0xFF, BYTES - size);
+            memset(bytes + size, 0xFF, BYTES - size);
         }
     }
 
     template<size_t M, bool R>
-    wide_int(wide_int<M, R> const& rhs) noexcept : wide_int() {
-        std::memcpy(bytes, rhs.bytes, std::min(BYTES, rhs.BYTES));
+    constexpr wide_int(wide_int<M, R> const& rhs) noexcept : wide_int() {
+        memcpy(bytes, rhs.bytes, std::min(BYTES, rhs.BYTES));
         if (rhs.is_negative() && BYTES > rhs.BYTES) {
-            std::memset(bytes + rhs.BYTES, 0xFF, BYTES - rhs.BYTES);
+            memset(bytes + rhs.BYTES, 0xFF, BYTES - rhs.BYTES);
         }
     }
 
-    template<typename Unsigned, REQUIRES(is_uint_v<Unsigned>)>
-    wide_int& operator=(Unsigned u) noexcept {
+    template<typename Unsigned> requires is_uint_v<Unsigned>
+    constexpr wide_int& operator=(Unsigned u) noexcept {
         return *new (this) wide_int(u);
     }
 
-    template<typename Signed, REQUIRES(is_sint_v<Signed>)>
-    wide_int& operator=(Signed s) noexcept {
+    template<typename Signed> requires is_sint_v<Signed>
+    constexpr wide_int& operator=(Signed s) noexcept {
         return *new (this) wide_int(s);
     }
 
     template<size_t M, bool R>
-    wide_int& operator=(wide_int<M, R> const& rhs) noexcept {
+    constexpr wide_int& operator=(wide_int<M, R> const& rhs) noexcept {
         return *new (this) wide_int(rhs);
     }
 
-    wide_int& complement() noexcept {
+    constexpr wide_int& complement() noexcept {
         for (size_t i = 0; i < BYTES; ++i) {
             bytes[i] = ~bytes[i];
         }
         return *this;
     }
     
-    wide_int operator~() const noexcept {
+    constexpr wide_int operator~() const noexcept {
         wide_int ret = *this;
         return ret.complement();
     }
 
-    wide_int& negative() noexcept {
+    constexpr wide_int& negative() noexcept {
         return complement().operator++();
     }
 
-    wide_int operator+() const noexcept {
+    constexpr wide_int operator+() const noexcept {
         return *this;
     }
 
-    wide_int operator-() const noexcept {
+    constexpr wide_int operator-() const noexcept {
         wide_int ret = *this;
         return ret.negative();
     }
 
-    bool is_negative() const noexcept {
+    constexpr bool is_negative() const noexcept {
         return SIGNED && highest_bit();
     }
 
-    wide_int& operator+=(wide_int const& rhs) noexcept {
+    constexpr wide_int& operator+=(wide_int const& rhs) noexcept {
         unsigned carry = 0;
         for (size_t i = 0; i < BYTES; ++i) {
             carry += bytes[i] + rhs.bytes[i];
@@ -133,44 +150,44 @@ struct wide_int {
         return *this;
     }
 
-    wide_int& operator-=(wide_int const& rhs) noexcept {
+    constexpr wide_int& operator-=(wide_int const& rhs) noexcept {
         return operator+=(-rhs);
     }
 
-    wide_int& operator++() noexcept {
+    constexpr wide_int& operator++() noexcept {
         return operator+=(1);
     }
 
-    wide_int operator++(int) noexcept {
+    constexpr wide_int operator++(int) noexcept {
         wide_int ret = *this;
         operator++();
         return ret;
     }
 
-    wide_int& operator--() noexcept {
+    constexpr wide_int& operator--() noexcept {
         return operator-=(1);
     }
 
-    wide_int operator--(int) noexcept {
+    constexpr wide_int operator--(int) noexcept {
         wide_int ret = *this;
         operator--();
         return ret;
     }
 
-    wide_int& operator *=(wide_int const& rhs) noexcept {
+    constexpr wide_int& operator *=(wide_int const& rhs) noexcept {
         return *this = *this * rhs;
     }
 
-    wide_int& operator /=(wide_int const& rhs) {
+    constexpr wide_int& operator /=(wide_int const& rhs) {
         return *this = div(rhs).qout;
     }
     
-    wide_int& operator %=(wide_int const& rhs) {
+    constexpr wide_int& operator %=(wide_int const& rhs) {
         return *this = div(rhs).rem;
     }
 
 #define BIT_OP(op) \
-wide_int& operator op##=(wide_int const& rhs) noexcept { \
+constexpr wide_int& operator op##=(wide_int const& rhs) noexcept { \
     for (size_t i = 0; i < BYTES; ++i) \
         bytes[i] op##= rhs.bytes[i]; \
     return *this; \
@@ -182,7 +199,7 @@ BIT_OP(^)
 
 #undef BIT_OP
 
-    wide_int& shiftLeftBytes(size_t rhs) noexcept {
+    constexpr wide_int& shiftLeftBytes(size_t rhs) noexcept {
         if (rhs) {
             rhs = std::min(rhs, BYTES);
             memmove(bytes + rhs, bytes, BYTES - rhs);
@@ -191,7 +208,7 @@ BIT_OP(^)
         return *this;
     }
 
-    wide_int& operator<<=(size_t rhs) noexcept {
+    constexpr wide_int& operator<<=(size_t rhs) noexcept {
         size_t rbyte = rhs >> 3;
         size_t rbit = rhs & 7;
         shiftLeftBytes(rbyte);
@@ -206,7 +223,7 @@ BIT_OP(^)
         return *this;
     }
 
-    wide_int& shiftRightBytes(size_t rhs) noexcept {
+    constexpr wide_int& shiftRightBytes(size_t rhs) noexcept {
         if (rhs) {
             rhs = std::min(rhs, BYTES);
             memmove(bytes, bytes + rhs, BYTES - rhs);
@@ -215,7 +232,7 @@ BIT_OP(^)
         return *this;
     }
 
-    wide_int& operator>>=(size_t rhs) noexcept {
+    constexpr wide_int& operator>>=(size_t rhs) noexcept {
         size_t rbyte = rhs >> 3;
         size_t rbit = rhs & 7;
         shiftRightBytes(rbyte);
@@ -234,7 +251,7 @@ BIT_OP(^)
         return *this;
     }
 
-    wide_int& shift(int rhs) noexcept {
+    constexpr wide_int& shift(int rhs) noexcept {
         if (rhs) {
             if (rhs > 0) operator<<=(rhs);
             if (rhs < 0) operator>>=(-rhs);
@@ -243,7 +260,7 @@ BIT_OP(^)
     }
 
 #define SHIFT_OP(op) \
-wide_int operator op(size_t rhs) const noexcept { \
+constexpr wide_int operator op(size_t rhs) const noexcept { \
     wide_int ret = *this; \
     return ret op##= rhs; \
 }
@@ -253,12 +270,12 @@ SHIFT_OP(>>)
 
 #undef SHIFT_OP
 
-    wide_int abs() const noexcept {
+    constexpr wide_int abs() const noexcept {
         if (is_negative())  return operator-();
         else                return operator+();
     }
     
-    static wide_int exp2(size_t n) {
+    static constexpr wide_int exp2(size_t n) {
         wide_int ret;
         if (n < ret.BITS) {
             ret.bytes[n >> 3] = 1 << (n & 7);
@@ -266,7 +283,7 @@ SHIFT_OP(>>)
         return ret;
     }
     
-    size_t log2() const {
+    constexpr size_t log2() const {
         for (size_t i = BYTES - 1; /* i >= 0 */ ~i; --i) {
             if (bytes[i]) {
                 return (i << 3) + log2byte(bytes[i]);
@@ -279,7 +296,7 @@ SHIFT_OP(>>)
         wide_int quot, rem;
     };
 
-    div_t div(wide_int rhs) const {
+    constexpr div_t div(wide_int rhs) const {
         if (!rhs) throw std::invalid_argument("divided by 0");
         if (!*this) return {0, 0};
         if (SIGNED) {
@@ -322,37 +339,37 @@ SHIFT_OP(>>)
         return {qout, rem};
     }
 
-    explicit operator bool() const noexcept {
+    explicit constexpr operator bool() const noexcept {
         for (size_t i = 0; i < BYTES; ++i) {
             if (bytes[i]) return true;
         }
         return false;
     }
     
-    bool highest_bit() const noexcept {
+    constexpr bool highest_bit() const noexcept {
         return bytes[BYTES - 1] >> 7;
     }
 
-    byte to_byte() const noexcept {
+    constexpr byte to_byte() const noexcept {
         return bytes[0];
     }
 
-    static wide_int from_byte(byte b) noexcept {
+    static constexpr wide_int from_byte(byte b) noexcept {
         wide_int ret;
         ret.bytes[0] = b;
         return ret;
     }
 
-    template<typename Integral, REQUIRES(std::is_integral_v<Integral>)>
-    Integral to_integral() const noexcept {
+    template<typename Integral> requires std::is_integral_v<Integral>
+    constexpr Integral to_integral() const noexcept {
         static_assert(!std::is_same_v<Integral, bool>, "use operator bool() instead");
-        Integral integral;
-        memcpy(&integral, bytes, std::min(BYTES, sizeof integral));
-        return integral;
+        std::array<byte, std::min(BYTES, sizeof(Integral))> buf;
+        memcpy(buf.data(), bytes, buf.size());
+        return std::bit_cast<Integral>(buf);
     }
 
-    template<typename FP, REQUIRES(std::is_floating_point_v<FP>)>
-    static wide_int from_float(FP fp) noexcept {
+    template<typename FP> requires std::is_floating_point_v<FP>
+    static constexpr wide_int from_float(FP fp) noexcept {
         FPBits<FP> fpbits(fp);
         wide_int ret = fpbits.full_fraction();
         if (ret) {
@@ -362,15 +379,15 @@ SHIFT_OP(>>)
         return ret;
     }
 
-    wide_int<BITS, false> to_unsigned() const noexcept {
+    constexpr wide_int<BITS, false> to_unsigned() const noexcept {
         return operator+();
     }
 
-    wide_int<BITS, true> to_signed() const noexcept {
+    constexpr wide_int<BITS, true> to_signed() const noexcept {
         return operator+();
     }
 
-    std::string to_string(int base = 10, bool uppercase = false) const {
+    constexpr std::string to_string(int base = 10, bool uppercase = false) const {
 		int_base::assertValid(base);
         std::string buf;
         div_t d = {abs(), 0};
@@ -382,8 +399,8 @@ SHIFT_OP(>>)
         return {buf.rbegin(), buf.rend()};
     }
 
-    template<typename FP, REQUIRES(std::is_floating_point_v<FP>)>
-    FP to_float() const noexcept {
+    template<typename FP> requires std::is_floating_point_v<FP>
+    constexpr FP to_float() const noexcept {
         FPBits<FP> fpbits;
         int exp = log2();
         fpbits.exp2(exp);
@@ -393,7 +410,7 @@ SHIFT_OP(>>)
     }
 
     template<typename G>
-    static wide_int random(G& g, wide_int upper) {
+    static constexpr wide_int random(G& g, wide_int upper) {
         int cmp = upper.compare(0);
         if (cmp < 0) throw std::invalid_argument("negative upper");
         if (cmp == 0) return 0;
@@ -417,11 +434,11 @@ SHIFT_OP(>>)
     }
 
     template<typename G>
-    static wide_int random(G g, wide_int lower, wide_int upper) {
+    static constexpr wide_int random(G g, wide_int lower, wide_int upper) {
         return lower + random(g, upper - lower);
     }
 
-    static wide_int from_string(const char* cp, int base = 10) {
+    static constexpr wide_int from_string(const char* cp, int base = 10) {
 		int_base::assertValid(base);
         if (cp == 0 || *cp == 0) throw std::invalid_argument("invalid string");
         bool neg = false;
@@ -440,7 +457,7 @@ SHIFT_OP(>>)
         return ret;
     }
 
-    static wide_int from_string_based(const char* cp) {
+    static constexpr wide_int from_string_based(const char* cp) {
         if (cp == 0 || *cp == 0) throw std::invalid_argument("invalid string");
         bool neg = false;
         switch (cp[0]) {
@@ -528,7 +545,7 @@ SHIFT_OP(>>)
         return is;
     }
 
-    int compare(wide_int const& rhs) const noexcept {
+    constexpr int compare(wide_int const& rhs) const noexcept {
         if (int cmp = is_negative() - rhs.is_negative()) return -cmp;
         for (size_t i = BYTES - 1; /* i >= 0 */ ~i; --i) {
             if (int cmp = bytes[i] - rhs.bytes[i]) return cmp;
@@ -537,12 +554,12 @@ SHIFT_OP(>>)
     }
 };
 
-template<typename Integral, REQUIRES(std::is_integral_v<Integral>)>
+template<typename Integral> requires std::is_integral_v<Integral>
 wide_int(Integral) -> wide_int<sizeof(Integral) << 3, std::is_signed_v<Integral>>;
 
 #define BINARY_OP(op) \
 template<size_t N, bool S, size_t M, bool R> \
-std::common_type_t<wide_int<N, S>, wide_int<M, R>> \
+constexpr std::common_type_t<wide_int<N, S>, wide_int<M, R>> \
     operator op(wide_int<N, S> const& lhs, wide_int<M, R> const& rhs) noexcept { \
     std::common_type_t<wide_int<N, S>, wide_int<M, R>> ret = lhs; \
     return ret op##= rhs; \
@@ -557,7 +574,7 @@ BINARY_OP(^)
 #undef BINARY_OP
 
 template<size_t N, bool S, size_t M, bool R>
-std::common_type_t<wide_int<N, S>, wide_int<M, R>> 
+constexpr std::common_type_t<wide_int<N, S>, wide_int<M, R>> 
     operator*(wide_int<N, S> const& lhs, wide_int<M, R> const& rhs) noexcept {
     std::common_type_t<wide_int<N, S>, wide_int<M, R>> ret;
     for (size_t i = 0; i < lhs.BYTES; ++i) {
@@ -572,33 +589,33 @@ std::common_type_t<wide_int<N, S>, wide_int<M, R>>
 }
 
 template<size_t N, bool S, size_t M, bool R>
-typename std::common_type_t<wide_int<N, S>, wide_int<M, R>>::div_t
+constexpr typename std::common_type_t<wide_int<N, S>, wide_int<M, R>>::div_t
     div(wide_int<N, S> lhs, wide_int<M, R> rhs) {
     std::common_type_t<wide_int<N, S>, wide_int<M, R>> ret = lhs;
     return ret.div(rhs);
 }
 
 template<size_t N, bool S, size_t M, bool R>
-std::common_type_t<wide_int<N, S>, wide_int<M, R>> 
+constexpr std::common_type_t<wide_int<N, S>, wide_int<M, R>> 
     operator/(wide_int<N, S> const& lhs, wide_int<M, R> const& rhs) {
     return div(lhs, rhs).quot;
 }
 
 template<size_t N, bool S, size_t M, bool R>
-std::common_type_t<wide_int<N, S>, wide_int<M, R>> 
+constexpr std::common_type_t<wide_int<N, S>, wide_int<M, R>> 
     operator%(wide_int<N, S> const& lhs, wide_int<M, R> const& rhs) {
     return div(lhs, rhs).rem;
 }
 
 template<size_t N, bool S, size_t M, bool R>
-int compare(wide_int<N, S> const& lhs, wide_int<M, R> const& rhs) noexcept {
+constexpr int compare(wide_int<N, S> const& lhs, wide_int<M, R> const& rhs) noexcept {
     std::common_type_t<wide_int<N, S>, wide_int<M, R>> ret = lhs;
     return ret.compare(rhs);
 }
 
 #define COMPARE_OP(op) \
 template<size_t N, bool S, size_t M, bool R> \
-bool operator op(wide_int<N, S> const& lhs, wide_int<M, R> const& rhs) noexcept { \
+constexpr bool operator op(wide_int<N, S> const& lhs, wide_int<M, R> const& rhs) noexcept { \
     return compare(lhs, rhs) op 0; \
 }
 
@@ -616,16 +633,16 @@ using sint##N = wide_int<N, true>; \
 using uint##N = wide_int<N, false>; \
 inline namespace literals { \
 inline namespace wide_int_literals { \
-sint##N operator"" _s##N(unsigned long long ull) { \
+constexpr sint##N operator"" _s##N(unsigned long long ull) { \
     return ull; \
 } \
-sint##N operator"" _sL##N(const char* s) { \
+constexpr sint##N operator"" _sL##N(const char* s) { \
     return sint##N::from_string_based(s); \
 } \
-uint##N operator"" _u##N(unsigned long long ull) { \
+constexpr uint##N operator"" _u##N(unsigned long long ull) { \
     return ull; \
 } \
-uint##N operator"" _uL##N(const char* s) { \
+constexpr uint##N operator"" _uL##N(const char* s) { \
     return uint##N::from_string_based(s); \
 } \
 } \
@@ -645,16 +662,18 @@ ALIAS(8192)
 
 template<size_t N, bool S>
 struct std::hash<yao_math::wide_int<N, S>> {
-    size_t operator()(yao_math::wide_int<N, S> const& rhs) const noexcept {
+    constexpr size_t operator()(yao_math::wide_int<N, S> const& rhs) const noexcept {
         return rhs.template to_integral<size_t>();
     }
 };
 
-#undef REQUIRES
-
 #include <iostream>
 #include <iomanip>
 #include <map>
+
+constexpr yao_math::uint256 foo = yao_math::pow(yao_math::uint256(3), 100);
+constexpr yao_math::uint256 bar = yao_math::uint256::from_string("123456");
+static_assert(foo > bar);
 
 int main() {
     using namespace std;
