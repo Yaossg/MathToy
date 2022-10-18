@@ -84,7 +84,7 @@ public:
         return that *= coe;
     }
     
-    matrix operator*(matrix that) const {
+    matrix operator*(matrix const& that) const {
         size_t p = that.m;
         if (n != p) throw invalid_matrix("multiplication can be applied only if the row() of first matrix equals col() of second one");
         matrix product(m, that.n);
@@ -117,7 +117,7 @@ public:
     }
 
     E det() const {
-        ASSERT_SQUARE("determinant");
+        ASSERT_SQUARE("det");
         switch (m) { // shortcut
             case 1: return at(0, 0);
             case 2: return at(0, 0) * at(1, 1) - at(0, 1) * at(1, 0);
