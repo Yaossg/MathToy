@@ -31,14 +31,14 @@ public:
 	}
 	friend Mono operator *(Mono const& a, Mono const& b) {
 		Mono r = a;
-		for (auto const& [a, n] : b.core)
-			r.core[a] += n;
+		for (auto const& [x, n] : b.core)
+			r.core[x] += n;
 		return r;
 	}
 	friend std::string toTex(Mono const& t) {
 		std::string r;
-		for(auto const& [a, n] : t.core) {
-			r += a;
+		for(auto const& [x, n] : t.core) {
+			r += x;
 			if (n > 1) {
 				r += "^";
 				auto exp = toTex(n);
@@ -58,7 +58,7 @@ public:
 	}
 	Int degree() const {
 		Int m = 0;
-		for (auto const& [a, n] : core)
+		for (auto const& [x, n] : core)
 			m = std::max(m, n);
 		return m;
 	}
@@ -83,12 +83,14 @@ class IntExpr {
 public:
 	using int_t = Int;
 	IntExpr(Int C = 0): core{{ {}, C }} {}
-	IntExpr(std::string a, Int n = 1): core{{ { {{a, n}} }, 1 }, { {}, 0 }} {}
+	IntExpr(std::string const& x, Int n = 1): core{{ { {{x, n}} }, 1 }, { {}, 0 }} {}
 	IntExpr(mono mono, Int C = 1): core{{ mono, C }, { {}, 0 }} {}
 
 	explicit operator bool() const {
 		return core != core_t{{ {}, 0 }};
 	}
+
+	bool operator!() const { return !this->operator bool(); }
 	
 	IntExpr operator+() const {
 		return *this;
@@ -101,7 +103,7 @@ public:
 	IntExpr& operator+=(IntExpr const& other) {
 		for(auto const& [x1, k1] : other.core) {
 			core[x1] += k1;
-			if(core[x1] == 0)
+			if(core[x1] == 0 && x1 != mono{})
 				core.erase(x1);
 		}
 		return *this;
@@ -138,8 +140,9 @@ public:
 	}
 
 	friend std::string toTex(IntExpr const& t) {
+		if (!t) return "0";
 		std::string r;
-		Int C;
+		Int C = 0;
 		for(auto const& [x1, k1] : t.core) {
 			if (x1.empty()) {
 				C = k1;
@@ -212,7 +215,7 @@ public:
 	Int gcd() const {
 		Int ret = 0;
 		for(auto const& [x1, k1] : core) {
-			ret = gcd(k1, ret);
+			ret = yao_math::gcd(k1, ret);
 		}
 		return ret;
 	}
@@ -231,9 +234,11 @@ public:
 	RatioExpr(IntExpr<Int> num, IntExpr<Int> den = 1)
 		: num{num}, den{den} { normalize(); }
 
-	explicit operator bool() {
-		return num;
+	explicit operator bool() const {
+		return (bool)num;
 	}
+
+	bool operator!() const { return !this->operator bool(); }
 	
 	RatioExpr operator+() const {
 		return *this;
@@ -295,28 +300,6 @@ RatioExpr<Int> operator/(IntExpr<Int> const& a, IntExpr<Int> const& b) {
 	return {a, b};
 }
 
-inline namespace literals { 
-inline namespace expr_literals {
-IntExpr<int> operator"" _e(unsigned long long n) {
-	return n;
-}
-IntExpr<long> operator"" _eL(unsigned long long n) {
-	return n;
-}
-IntExpr<long long> operator"" _eLL(unsigned long long n) {
-	return n;
-}
-IntExpr<int> operator"" _e(const char* chars, size_t) {
-	return {chars};
-}
-IntExpr<long> operator"" _eL(const char* chars, size_t) {
-	return {chars};
-}
-IntExpr<long long> operator"" _eLL(const char* chars, size_t) {
-	return {chars};
-}
-}
-}
 }
 
 #endif
