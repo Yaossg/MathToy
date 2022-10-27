@@ -16,7 +16,7 @@ namespace yao_math
 
 
 ```C++
-struct invalid_matrix: std::invalid_argument
+struct invalid_matrix : std::invalid_argument
 ```
 
 矩阵相关的异常
@@ -31,32 +31,12 @@ class matrix
 
 ## 矩阵类模板
 
-### 模板参数 `E`
-
-`E` 为矩阵的元素类型，至少需要满足下列要求
-
-- 不是`bool`
-- `E(0)`合法
-- `std::is_copy_assignable_v<E> == true`
-- `std::is_copy_constructible_v<E> == true`
-- 可以完成加减乘除四则运算
-
-部分函数的特殊要求见下面得详细介绍
-
-注意：矩阵的行列下标均从 0 开始
-
-### 公共成员和友元函数
-
 ```C++
-using element_t = E;
+matrix(size_t m, size_t n);
 ```
-成员类型
+构造一个`m * n`矩阵，并将每个元素默认初始化。
 ```C++
-explicit matrix(size_t m, std::function<E(size_t, size_t)> gen = zero);
-```
-构造一个`m`阶方阵，等价于`matrix(m, m, gen)`
-```C++
-matrix(size_t m, size_t n, std::function<E(size_t, size_t)> gen = zero);
+matrix(size_t m, size_t n, std::function<E(size_t, size_t)> gen);
 ```
 构造一个`m * n`矩阵，将`i`行`j`列并初始化为`gen(i, j)`
 ```C++
@@ -67,7 +47,7 @@ matrix(matrix&&) = default;
 ```C++
 size_t row();
 size_t col();
-size_t sz();
+size_t size();
 bool is_square() const;
 bool is_singleton() const;
 bool is_vector() const;
@@ -88,7 +68,7 @@ E const& at(size_t i, size_t j) const;
 ```
 访问`i`行`j`列元素
 ```C++
-matrix map(std::function<E(E)> mapper) const;
+matrix map(std::function<E(E const&)> mapper) const;
 ```
 对所有元素进行映射
 返回矩阵的`i`行`j`列元素为`mapper(this->at(i, j))`
@@ -102,13 +82,13 @@ matrix operator-(matrix that) const;
 ```
 矩阵的线性计算，注意参与计算的矩阵必须同形
 ```C++
-matrix const& operator*=(E coe);
-matrix operator*(E coe) const;
-friend matrix operator*(E coe, matrix that);
+matrix const& operator*=(E const& coe);
+matrix operator*(E const& coe) const;
+friend matrix operator*(E const& coe, matrix that);
 ```
 矩阵数乘
 ```C++
-matrix operator*(matrix that) const;
+matrix operator*(matrix const& that) const;
 ```
 矩阵乘法，注意前一个矩阵的列数必须等于后一个矩阵的行数
 ```C++
@@ -145,30 +125,12 @@ matrix inverse() const;
 E trace() const;
 ```
 矩阵的迹
-
 注意必须是方阵才能执行此函数
-
-```C++
-E reduce(std::function<E(E, E)> fold) const;
-E reduceRow(size_t row, std::function<E(E, E)> fold) const;
-E reduceCol(size_t col, std::function<E(E, E)> fold) const;
-```
-归约所有元素，或某一行某一列。
-
-归约顺序由小到大，归约所有元素时`at(i, j)`迭代下标递增是先`j`后`i`
-
-```C++
-matrix normalizeRow() const;
-matrix normalizeCol() const;
-```
-按行或按列归一化
-
-`std::sqrt(std::declval<E>())`必须有意义才能使用该函数
 
 ```C++
 friend std::string toTex(matrix const& t);
 ```
-将矩阵转换为Tex（可以用于如 LaTeX）
+将矩阵转换为 Tex
 
 `yao_math::toTex(std::declval<E>())`必须有意义才能使用该函数
 
@@ -182,5 +144,5 @@ friend std::ostream& operator<<(std::ostream& os, matrix const& that);
 
 [两个实数矩阵输入输出各类运算示例](./test.cpp)
 
-[五阶行列式展开LaTeX生成器](./test-expr.cpp)
+[五阶行列式展开、直线对称矩阵 TeX 生成器](./test-expr.cpp)
 
