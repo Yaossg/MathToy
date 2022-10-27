@@ -387,7 +387,7 @@ SHIFT_OP(>>)
         return operator+();
     }
 
-    constexpr std::string to_string(int base = 10, bool uppercase = false) const {
+    std::string to_string(int base = 10, bool uppercase = false) const {
 		int_base::assertValid(base);
         std::string buf;
         div_t d = {abs(), 0};
@@ -410,7 +410,7 @@ SHIFT_OP(>>)
     }
 
     template<typename G>
-    static constexpr wide_int random(G& g, wide_int upper) {
+    static wide_int random(G& g, wide_int upper) {
         int cmp = upper.compare(0);
         if (cmp < 0) throw std::invalid_argument("negative upper");
         if (cmp == 0) return 0;
@@ -434,7 +434,7 @@ SHIFT_OP(>>)
     }
 
     template<typename G>
-    static constexpr wide_int random(G g, wide_int lower, wide_int upper) {
+    static wide_int random(G g, wide_int lower, wide_int upper) {
         return lower + random(g, upper - lower);
     }
 
