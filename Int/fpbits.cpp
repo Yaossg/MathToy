@@ -1,10 +1,21 @@
-#include <cstring>
 #include <limits>
 #include <type_traits>
+#include <bit>
 
 namespace yao_math {
 
 typedef unsigned long long bitfield;
+
+/*
+ * helper class to construct/destruct a floating-point number
+ * with the assumption that
+ * - float and double meet IEEE 754
+ * - native endianness is little-endian
+*/
+
+static_assert(std::numeric_limits<float>::is_iec559);
+static_assert(std::numeric_limits<double>::is_iec559);
+static_assert(std::endian::little == std::endian::native);
 
 template<typename F>
 struct FPBits {
