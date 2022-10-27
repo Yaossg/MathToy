@@ -1,16 +1,15 @@
 #include <iostream>
 using namespace std;
+
 #include "expr.cpp"
-#include <fstream>
 
 using namespace yao_math;
-using namespace yao_math::expr_literals;
 
 int main() {
-	auto a = "a"_e, b = "b"_e, c = "c"_e, x = "x"_e;
+	IntExpr<int> x("x", 1);
 	
 	auto e1 = (x+1)*(x+2)*(x+3);
 	cout << toTex(e1) << endl;
-	
-	return 0;
+    auto e2 = e1.eval("x", -1);
+	cout << toTex(e2) << endl;
 }

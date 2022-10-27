@@ -4,6 +4,7 @@
 #include <iterator>
 #include <numeric>
 #include <cmath>
+#include <compare>
 
 #include "../yao_math.h"
 
@@ -12,23 +13,21 @@
 
 namespace yao_math { 
 
-template<typename Int>
 class Mono {
-	std::map<std::string, Int> core;
+	std::map<std::string, size_t> core;
 public:
-	using int_t = Int;
 	Mono(): core{} {}
-	Mono(std::map<std::string, Int> core): core{core} {}
-	friend bool operator <(Mono const& a, Mono const& b) {
-		if (auto cmp = a.degree() - b.degree()) return cmp > 0;
-		return a.core < b.core;	
-	}
-	friend bool operator ==(Mono const& a, Mono const& b) { 
-		return a.core == b.core;
-	}
-	friend bool operator !=(Mono const& a, Mono const& b) { 
-		return a.core != b.core;
-	}
+    Mono(std::map<std::string, size_t> core): core{std::move(core)} {}
+
+    friend bool operator ==(Mono const& a, Mono const& b) {
+        return a.core == b.core;
+    }
+
+    friend std::strong_ordering operator <=>(Mono const& a, Mono const& b) {
+        if (auto cmp = b.degree() <=> a.degree(); cmp != 0) return cmp;
+        return a.core <=> b.core;
+    }
+
 	friend Mono operator *(Mono const& a, Mono const& b) {
 		Mono r = a;
 		for (auto const& [x, n] : b.core)
@@ -37,7 +36,7 @@ public:
 	}
 	friend std::string toTex(Mono const& t) {
 		std::string r;
-		for(auto const& [x, n] : t.core) {
+		for (auto const& [x, n] : t.core) {
 			r += x;
 			if (n > 1) {
 				r += "^";
@@ -49,48 +48,48 @@ public:
 		return r;
 	}
 	bool empty() const { return core.empty(); }
-	void erase(std::string name) { core.erase(name); }
-	bool contains(std::string name) const {
+	void erase(std::string const& name) { core.erase(name); }
+	bool contains(std::string const& name) const {
 		return core.find(name) != core.end();
 	}
-	Int at(std::string name) const {
+	size_t at(std::string const& name) const {
 		return core.at(name);
 	}
-	Int degree() const {
-		Int m = 0;
+	size_t degree() const {
+		size_t m = 0;
 		for (auto const& [x, n] : core)
 			m = std::max(m, n);
 		return m;
 	}
 };
 
-template<typename Int>
+template<typename CInt>
 class RatioExpr;
 
-template<typename Int>
+template<typename CInt>
 class IntExpr {
-	friend class RatioExpr<Int>;
-	using mono = Mono<Int>;
-	using core_t = std::map<mono, Int>;
+	friend class RatioExpr<CInt>;
+	using mono = Mono;
+	using core_t = std::map<mono, CInt>;
 	core_t core;
-	IntExpr(core_t core): core{core} {}
+    IntExpr(core_t core): core{std::move(core)} {}
 	
-	void div(Int g) {
-		for(auto& [x1, k1] : core) {
+	void div(CInt g) {
+		for (auto& [x1, k1] : core) {
 			k1 /= g;
 		}
 	}
 public:
-	using int_t = Int;
-	IntExpr(Int C = 0): core{{ {}, C }} {}
-	IntExpr(std::string const& x, Int n = 1): core{{ { {{x, n}} }, 1 }, { {}, 0 }} {}
-	IntExpr(mono mono, Int C = 1): core{{ mono, C }, { {}, 0 }} {}
+	using coefficient_t = CInt;
+	IntExpr(CInt const& C = 0): core{{ {}, C }} {}
+	IntExpr(std::string const& x, size_t n = 1): core{{ { {{x, n}} }, 1 }, {{},0}} {}
+	IntExpr(mono const& mono, CInt const& C = 1): core{{ mono, C }, {{},0}} {}
 
 	explicit operator bool() const {
-		return core != core_t{{ {}, 0 }};
+		return !operator!();
 	}
 
-	bool operator!() const { return !this->operator bool(); }
+	bool operator!() const { return core == core_t{{{}, 0}}; }
 	
 	IntExpr operator+() const {
 		return *this;
@@ -101,9 +100,9 @@ public:
 	}
 	
 	IntExpr& operator+=(IntExpr const& other) {
-		for(auto const& [x1, k1] : other.core) {
+		for (auto const& [x1, k1] : other.core) {
 			core[x1] += k1;
-			if(core[x1] == 0 && x1 != mono{})
+			if (core[x1] == 0 && !x1.empty())
 				core.erase(x1);
 		}
 		return *this;
@@ -129,8 +128,8 @@ public:
 	friend IntExpr operator*(IntExpr const& a, IntExpr const& b) {
 		if (!a || !b) return {};
 		IntExpr r;
-		for(auto const& [x1, k1] : a.core) {
-			for(auto const& [x2, k2] : b.core) {
+		for (auto const& [x1, k1] : a.core) {
+			for (auto const& [x2, k2] : b.core) {
 				auto k = k1 * k2;
 				if (k)
 					r += {x1 * x2, k};
@@ -142,8 +141,8 @@ public:
 	friend std::string toTex(IntExpr const& t) {
 		if (!t) return "0";
 		std::string r;
-		Int C = 0;
-		for(auto const& [x1, k1] : t.core) {
+		CInt C = 0;
+		for (auto const& [x1, k1] : t.core) {
 			if (x1.empty()) {
 				C = k1;
 				continue;
@@ -166,12 +165,12 @@ public:
 		}
 		return r;
 	}
-	
-	IntExpr eval(std::string name, Int value) const {
+
+	IntExpr eval(std::string const& name, CInt const& value) const {
 		return eval(name, IntExpr{value});
 	}
 	
-	IntExpr eval(std::string name, IntExpr expr) const {
+	IntExpr eval(std::string const& name, IntExpr const& expr) const {
 		core_t ret = core, buf;
 		for (auto it = ret.begin(); it != ret.end(); ) {
 			if (it->first.contains(name)) {
@@ -184,7 +183,7 @@ public:
 		IntExpr ans{ret};
 		for (auto [x0, k] : buf) {
 			mono x = x0;
-			Int n = x.at(name);
+			CInt n = x.at(name);
 			x.erase(name);
 			ans += IntExpr(x, k) * pow(expr, n);
 		}
@@ -192,7 +191,7 @@ public:
 	}
 	
 	
-	RatioExpr<Int> eval(std::string name, RatioExpr<Int> expr) const {
+	RatioExpr<CInt> eval(std::string const& name, RatioExpr<CInt> const& expr) const {
 		core_t ret = core, buf;
 		for (auto it = ret.begin(); it != ret.end();) {
 			if (it->first.contains(name)) {
@@ -202,36 +201,36 @@ public:
 				++it;
 			}
 		}
-		RatioExpr<Int> ans{IntExpr<Int>{ret}, 1};
+		RatioExpr<CInt> ans{IntExpr<CInt>{ret}, 1};
 		for (auto [x0, k] : buf) {
 			mono x = x0;
-			Int n = x.at(name);
+			CInt n = x.at(name);
 			x.erase(name);
 			ans += IntExpr(x, k) * pow(expr, n);
 		}
 		return ans;
 	}
 	
-	Int gcd() const {
-		Int ret = 0;
-		for(auto const& [x1, k1] : core) {
+	CInt gcd() const {
+		CInt ret = 0;
+		for (auto const& [x1, k1] : core) {
 			ret = yao_math::gcd(k1, ret);
 		}
 		return ret;
 	}
 };
 
-template<typename Int>
+template<typename CInt>
 class RatioExpr {
-	IntExpr<Int> num, den;
+	IntExpr<CInt> num, den;
 	void normalize() {
-		Int g = gcd(num.gcd(), den.gcd());
+		CInt g = gcd(num.gcd(), den.gcd());
 		num.div(g); den.div(g);
 	}
 public:
-	using int_t = Int;
-	RatioExpr(Int num = 0, Int den = 1): num{num}, den{den} {}
-	RatioExpr(IntExpr<Int> num, IntExpr<Int> den = 1)
+	using int_t = CInt;
+	RatioExpr(CInt num = 0, CInt den = 1): num{num}, den{den} {}
+	RatioExpr(IntExpr<CInt> num, IntExpr<CInt> den = 1)
 		: num{num}, den{den} { normalize(); }
 
 	explicit operator bool() const {
@@ -285,7 +284,7 @@ public:
 		return a * b.inverse();
 	}
 	
-	RatioExpr eval(std::string name, RatioExpr value) const {
+	RatioExpr eval(std::string const& name, RatioExpr const& value) const {
 		return num.eval(name, value) / den.eval(name, value);
 	}
 	

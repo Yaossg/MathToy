@@ -17,10 +17,10 @@ void det() {
 
 // compute reflection matrix against y=mx+b
 void sub() {
-    RatioExpr b = IntExpr("b", 1);
+    RatioExpr b = IntExpr<int>("b", 1);
     // p = sqrt(1+m^2)
-    RatioExpr cos = IntExpr(1) / IntExpr("p", 1);
-    RatioExpr sin = -IntExpr("m", 1) / IntExpr("p", 1);
+    RatioExpr cos = IntExpr(1) / IntExpr<int>("p", 1);
+    RatioExpr sin = -IntExpr<int>("m", 1) / IntExpr<int>("p", 1);
 
     matrix<RatioExpr<int>> t2(3, 3),r2(3, 3),x(3, 3),r1(3, 3),t1(3, 3);
 
