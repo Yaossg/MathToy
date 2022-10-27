@@ -40,7 +40,7 @@ void measure(std::function<bool(unsigned long long)> test, std::string what) {
     	test(i);
     auto stop = std::chrono::system_clock::now();
     std::chrono::duration<double, std::milli> time = stop - start;
-    std::cout << std::setw(5) << time.count() << "  ms for " << what << '\n';
+    std::cout << time.count() << "ms for " << what << std::endl;
 }
 
 int main() {

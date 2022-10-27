@@ -6,7 +6,7 @@
 #include <sstream>
 #include <cmath>
 
-class PrimeEngine {
+class SievePrimeEngine {
 	std::vector<uintmax_t> primes = init_primes;
 	uintmax_t current = 50;
 	size_t count = 0;
@@ -14,11 +14,11 @@ class PrimeEngine {
 	 * n		50^(2^n)
 	 */
 	size_t tail = primes.size();
-	bool compute(uintmax_t below, size_t capcity) {
-		// here we assume a uintmax_t has 64 bits
+	bool compute(uintmax_t below, size_t capacity) {
+		// here we assume the uintmax_t has 64 bits
 		uintmax_t limit = count == 3 ? UINTMAX_MAX : current * current;
 		for(uintmax_t i = current; i <= limit; ++i) {
-			if(i >= below || tail > capcity) return false;
+			if(i >= below || tail > capacity) return false;
 			if(is_prime(i))
 				primes[tail++] = i;
 		}
@@ -36,7 +36,7 @@ public:
 		switch(n) {
 			case 0: case 1: return false;
 			case 2: case 3: case 5: case 7: return true;
-			default: if(n & 1 == 0) return false; // shortcut for even numbers
+			default: if ((n & 1) == 0) return false; // shortcut for even numbers
 		}
 		for(uintmax_t i = 1 /*skipping 2*/ ; primes[i] * primes[i] <= n; ++i) 
 			if(n % primes[i] == 0) 
@@ -95,7 +95,7 @@ public:
 };
 
 int main() {
-	PrimeEngine engine;
+	SievePrimeEngine engine;
 	uintmax_t n = 1111177;
 	engine.computeBelow(n);
 	std::cout << std::boolalpha << engine.is_prime(n) << std::endl;
