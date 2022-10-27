@@ -53,10 +53,10 @@ public:
 		primes.resize(tail);
 	}
 	
-	void computeCapcity(size_t capcity) {
-		if(capcity <= primes.size()) return;
-		primes.resize(std::max(capcity, primes.size()));
-		while(compute(-1, capcity));
+	void computeCapacity(size_t capacity) {
+		if(capacity <= primes.size()) return;
+		primes.resize(std::max(capacity, primes.size()));
+		while(compute(-1, capacity));
 	}
 	
 	std::map<uintmax_t, size_t> split(uintmax_t value) {
