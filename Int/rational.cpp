@@ -125,6 +125,10 @@ public:
             den = -den;
         }
     }
+
+    friend std::string toTex(Rational const& t) {
+        return "\\frac{" + toTex(t.num) + "}{" + toTex(t.den) + "}";
+    }
 };
 
 }

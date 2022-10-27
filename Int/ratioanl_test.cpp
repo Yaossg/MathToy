@@ -1,5 +1,9 @@
 #include "rational.cpp"
 
+#include <iostream>
+
+using namespace std;
+
 using namespace yao_math;
 
 
@@ -8,5 +12,5 @@ static_assert(a / b == Rational<int>{2, 3});
 
 
 int main() {
-
+    cout << toTex(a / b) << endl;
 }
