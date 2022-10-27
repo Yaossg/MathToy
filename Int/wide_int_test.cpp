@@ -12,4 +12,5 @@ int main() {
     using yao_math::byte;
     using namespace yao_math::wide_int_literals;
     cout << hash<uint256>{}(1000000000000000000000000000000000000000000000000000000000_uL256) << endl;
+    cout << toTex(bar) << endl;
 }

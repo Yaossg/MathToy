@@ -399,6 +399,10 @@ SHIFT_OP(>>)
         return {buf.rbegin(), buf.rend()};
     }
 
+    friend std::string toTex(wide_int w) {
+        return w.to_string();
+    }
+
     template<typename FP> requires std::is_floating_point_v<FP>
     constexpr FP to_float() const noexcept {
         FPBits<FP> fpbits;
