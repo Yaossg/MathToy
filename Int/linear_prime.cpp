@@ -2,11 +2,11 @@
 #include <cstdint>
 #include <cmath>
 
-struct liner_prime {
+struct LinearPrimeEngine {
     using int_t = std::uintmax_t;
     std::vector<int_t> primes;
     std::vector<bool> is_not_prime = {1, 1, 0, 0, 1, 0, 1, 0, 1, 1, 1};
-    liner_prime(int_t L) {
+    LinearPrimeEngine(int_t L) {
         if (L <= 10) {
             primes = {2, 3, 5, 7};
             return;
@@ -30,13 +30,3 @@ struct liner_prime {
     }
 
 };
-
-#include <iostream>
-using namespace std;
-
-int main() {
-    liner_prime lp(1000*1000);
-    for (liner_prime::int_t p : lp.primes) {
-        cout << p <<", ";
-    }
-}
