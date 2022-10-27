@@ -5,10 +5,6 @@
 using namespace std;
 using namespace yao_math;
 
-
-
-
-
 int main() {
     ifstream ifs("input.txt");
     ofstream ofs("output.txt");
@@ -35,20 +31,6 @@ int main() {
         double c = a.det();
         ofs << "|A| =" << endl;
         ofs << c << endl;
-    } catch (invalid_matrix const& e) {
-        ofs << e.what() << endl;
-    }
-    try {
-        matrix<double> c = a.normalizeRow();
-        ofs << "a.normalizeRow() =" << endl;
-        ofs << c;
-    } catch (invalid_matrix const& e) {
-        ofs << e.what() << endl;
-    }
-    try {
-        matrix<double> c = a.normalizeCol();
-        ofs << "a.normalizeCol() =" << endl;
-        ofs << c;
     } catch (invalid_matrix const& e) {
         ofs << e.what() << endl;
     }

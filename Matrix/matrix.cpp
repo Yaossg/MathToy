@@ -15,35 +15,30 @@
 
 namespace yao_math {
 
-struct invalid_matrix: std::invalid_argument {
+struct invalid_matrix : std::invalid_argument {
     explicit invalid_matrix(const char* message) : invalid_argument(message) {}
 };
 
-#define ASSERT_SQUARE(func) do if (!is_square()) throw invalid_matrix(func " is available only for square matrices"); while (false)
-
-// attention: indices range from 0 to n - 1
 template<typename E>
 class matrix {
-    static_assert(!std::is_same<E, bool>::value, "matrix<bool> is forbidden");
-    
-    static E zero(...) { return 0; }
-
     std::vector<E> e;
     size_t m, n;
-
 public:
     using element_t = E;
-    explicit matrix(size_t m, std::function<E(size_t, size_t)> gen = zero): matrix(m, m, gen) {}
-    explicit matrix(size_t m, size_t n, std::function<E(size_t, size_t)> gen = zero): m(m), n(n) {
-        if (!m || !n) throw invalid_matrix("empty matrix is forbidden"); 
+    matrix(size_t m, size_t n): m(m), n(n) {
+        if (!m || !n) throw invalid_matrix("empty matrix is forbidden");
         e.resize(m * n);
-        for (size_t i = 0; i < m; ++i) for (size_t j = 0; j < n; ++j) at(i, j) = gen(i, j);
+    }
+    matrix(size_t m, size_t n, std::function<E(size_t, size_t)> gen): matrix(m, n) {
+        for (size_t i = 0; i < m; ++i)
+            for (size_t j = 0; j < n; ++j)
+                at(i, j) = gen(i, j);
     }
     matrix(matrix const& that) = default;
     matrix(matrix&&) = default;
     size_t row() const { return m; }
     size_t col() const { return n; }
-    size_t sz() const { return m * n; }
+    size_t size() const { return m * n; }
 
     bool is_square() const { return m == n; }
     bool is_singleton() const { return m == 1 && n == 1; }
@@ -56,7 +51,7 @@ public:
     E& at(size_t i, size_t j) { return e[i * m + j]; }
     E const& at(size_t i, size_t j) const { return e[i * m + j]; }
 
-    matrix map(std::function<E(E)> mapper) const {
+    matrix map(std::function<E(E const&)> mapper) const {
         matrix that(m, n);
         for (size_t i = 0; i < m; ++i) for (size_t j = 0; j < n; ++j) that.at(i, j) = mapper(at(i, j));
         return that;
@@ -68,7 +63,9 @@ public:
 
     matrix const& operator+=(matrix const& that) {
         if (m != that.m || n != that.n) throw invalid_matrix("addition can be applied only on matrices with an identical size");
-        for (size_t i = 0; i < m; ++i) for (size_t j = 0; j < n; ++j) at(i, j) += that.at(i, j);
+        for (size_t i = 0; i < m; ++i)
+            for (size_t j = 0; j < n; ++j)
+                at(i, j) += that.at(i, j);
         return *this;
     }
 
@@ -76,11 +73,11 @@ public:
     matrix const& operator-=(matrix const& that) { return *this += -that; }
     matrix operator-(matrix that) const { return *this + -that; }
 
-    matrix const& operator*=(E coe) { return *this = *this * coe; }
-    matrix operator*(E coe) const {
+    matrix const& operator*=(E const& coe) { return *this = *this * coe; }
+    matrix operator*(E const& coe) const {
         return map(std::bind(std::multiplies<E>(), coe, std::placeholders::_1));
     }
-    friend matrix operator*(E coe, matrix that) {
+    friend matrix operator*(E const& coe, matrix that) {
         return that *= coe;
     }
     
@@ -88,7 +85,10 @@ public:
         size_t p = that.m;
         if (n != p) throw invalid_matrix("multiplication can be applied only if the row() of first matrix equals col() of second one");
         matrix product(m, that.n);
-        for (size_t i = 0; i < m; ++i) for (size_t j = 0; j < n; ++j) for (size_t k = 0; k < p; ++k) product.at(i, j) += at(i, k) * that.at(k, j);
+        for (size_t i = 0; i < m; ++i)
+            for (size_t j = 0; j < n; ++j)
+                for (size_t k = 0; k < p; ++k)
+                    product.at(i, j) += at(i, k) * that.at(k, j);
         return product;
     }
 
@@ -117,7 +117,7 @@ public:
     }
 
     E det() const {
-        ASSERT_SQUARE("det");
+        if (!is_square()) throw invalid_matrix("det() requires a square matrix");
         switch (m) { // shortcut
             case 1: return at(0, 0);
             case 2: return at(0, 0) * at(1, 1) - at(0, 1) * at(1, 0);
@@ -140,54 +140,22 @@ public:
     }
 
     matrix adjoint() const {
-        ASSERT_SQUARE("adjoint");
+        if (!is_square()) throw invalid_matrix("adjoint() requires a square matrix");
         return matrix(m, n, [this] (size_t i, size_t j) { return algebraic_cofactor(j, i); });
     }
 
     matrix inverse() const {
-        ASSERT_SQUARE("inverse");
+        if (!is_square()) throw invalid_matrix("inverse() requires a square matrix");
         E det_ = det();
         if (det_ == 0) throw invalid_matrix("matrix whose determinant is zero has no inverse matrix");
         return 1 / det_ * adjoint();
     }
 
     E trace() const {
-        ASSERT_SQUARE("trace");
+        if (!is_square()) throw invalid_matrix("trace() requires a square matrix");
         E trace_ = 0;
         for (size_t i = 0; i < m; ++i) trace_ += at(i, i);
         return trace_;
-    }
-
-    E reduce(std::function<E(E, E)> fold) const {
-        E acc = e[0];
-        for (size_t i = 1; i < sz(); ++i) acc = fold(acc, e[i]);
-        return acc;
-    }
-
-    E reduceRow(size_t row, std::function<E(E, E)> fold) const {
-        E acc = at(row, 0);
-        for (size_t j = 1; j < n; ++j) acc = fold(acc, at(row, j));
-        return acc;
-    }
-
-    E reduceCol(size_t col, std::function<E(E, E)> fold) const {
-        E acc = at(0, col);
-        for (size_t i = 1; i < m; ++i) acc = fold(acc, at(i, col));
-        return acc;
-    }
-
-    matrix normalizeRow() const {
-        matrix squared = map(std::bind(std::multiplies<E>(), std::placeholders::_1, std::placeholders::_1));
-        std::vector<E> length(m);
-        for (size_t i = 0; i < m; ++i) length[i] = std::sqrt(squared.reduceRow(i, std::plus<E>()));
-        return matrix(m, n, [this, &length] (size_t i, size_t j) { return at(i, j) / length[i]; });
-    }
-
-    matrix normalizeCol() const {
-        matrix squared = map(std::bind(std::multiplies<E>(), std::placeholders::_1, std::placeholders::_1));
-        std::vector<E> length(n);
-        for (size_t j = 0; j < n; ++j) length[j] = std::sqrt(squared.reduceCol(j, std::plus<E>()));
-        return matrix(m, n, [this, &length] (size_t i, size_t j) { return at(i, j) / length[j]; });
     }
 
     friend std::string toTex(matrix const& t) {
@@ -221,8 +189,6 @@ public:
         return os;
     }
 };
-
-#undef ASSERT_SQUARE
 
 }
 
