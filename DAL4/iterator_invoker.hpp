@@ -14,7 +14,7 @@ namespace data_analysis
 		using reference = typename std::iterator_traits<It>::reference;
 		using iterator_category = typename std::iterator_traits<It>::iterator_category;
 		iterator_invoker() = default;
-		explicit iterator_invoker(It it, funcT<value_type> func = nullptr)
+		iterator_invoker(It it, funcT<value_type> func = nullptr)
 			:it(it), func(func) {}
 		It it;
 		funcT<value_type> func;
