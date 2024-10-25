@@ -40,11 +40,6 @@ namespace yao_math {
         }
     }
 
-    template<typename T>
-    constexpr bool is_sint_v = std::is_integral_v<T> && std::is_signed_v<T>;
-    template<typename T>
-    constexpr bool is_uint_v = std::is_integral_v<T> && std::is_unsigned_v<T>;
-
     template<size_t N, bool S>
     struct wide_int;
 }
@@ -73,13 +68,13 @@ struct wide_int {
         memset(bytes, 0, BYTES);
     }
 
-    template<typename Unsigned> requires is_uint_v<Unsigned>
+    template<std::unsigned_integral Unsigned>
     constexpr wide_int(Unsigned u) noexcept : wide_int() {
         auto buf = std::bit_cast<std::array<byte, std::min(BYTES, sizeof u)>>(u);
         memcpy(bytes, buf.data(), buf.size());
     }
 
-    template<typename Signed> requires is_sint_v<Signed>
+    template<std::signed_integral Signed>
     constexpr wide_int(Signed s) noexcept : 
         wide_int(static_cast<std::make_unsigned_t<Signed>>(s)) {
         size_t size = sizeof s;
@@ -96,19 +91,20 @@ struct wide_int {
         }
     }
 
-    template<typename Unsigned> requires is_uint_v<Unsigned>
+    template<std::unsigned_integral Unsigned>
     constexpr wide_int& operator=(Unsigned u) noexcept {
         return *new (this) wide_int(u);
     }
 
-    template<typename Signed> requires is_sint_v<Signed>
+    template<std::signed_integral Signed>
     constexpr wide_int& operator=(Signed s) noexcept {
         return *new (this) wide_int(s);
     }
 
     template<size_t M, bool R>
     constexpr wide_int& operator=(wide_int<M, R> const& rhs) noexcept {
-        return *new (this) wide_int(rhs);
+        if (this != &rhs) *new (this) wide_int(rhs);
+        return *this;
     }
 
     constexpr wide_int& complement() noexcept {
@@ -141,6 +137,7 @@ struct wide_int {
     }
 
     constexpr wide_int& operator+=(wide_int const& rhs) noexcept {
+        if (this == &rhs) return operator<<=(1);
         unsigned carry = 0;
         for (size_t i = 0; i < BYTES; ++i) {
             carry += bytes[i] + rhs.bytes[i];
@@ -186,18 +183,18 @@ struct wide_int {
         return *this = div(rhs).rem;
     }
 
-#define BIT_OP(op) \
+#define YAO_MATH_WIDE_INT_BITWISE_OP(op) \
 constexpr wide_int& operator op##=(wide_int const& rhs) noexcept { \
     for (size_t i = 0; i < BYTES; ++i) \
         bytes[i] op##= rhs.bytes[i]; \
     return *this; \
 }
 
-BIT_OP(&)
-BIT_OP(|)
-BIT_OP(^)
+YAO_MATH_WIDE_INT_BITWISE_OP(&)
+YAO_MATH_WIDE_INT_BITWISE_OP(|)
+YAO_MATH_WIDE_INT_BITWISE_OP(^)
 
-#undef BIT_OP
+#undef YAO_MATH_WIDE_INT_BITWISE_OP
 
     constexpr wide_int& shiftLeftBytes(size_t rhs) noexcept {
         if (rhs) {
@@ -259,16 +256,16 @@ BIT_OP(^)
         return *this;
     }
 
-#define SHIFT_OP(op) \
+#define YAO_MATH_WIDE_INT_SHIFT_OP(op) \
 constexpr wide_int operator op(size_t rhs) const noexcept { \
     wide_int ret = *this; \
     return ret op##= rhs; \
 }
 
-SHIFT_OP(<<)
-SHIFT_OP(>>)
+YAO_MATH_WIDE_INT_SHIFT_OP(<<)
+YAO_MATH_WIDE_INT_SHIFT_OP(>>)
 
-#undef SHIFT_OP
+#undef YAO_MATH_WIDE_INT_SHIFT_OP
 
     constexpr wide_int abs() const noexcept {
         if (is_negative())  return operator-();
@@ -360,7 +357,7 @@ SHIFT_OP(>>)
         return ret;
     }
 
-    template<typename Integral> requires std::is_integral_v<Integral>
+    template<std::integral Integral>
     constexpr Integral to_integral() const noexcept {
         static_assert(!std::is_same_v<Integral, bool>, "use operator bool() instead");
         std::array<byte, std::min(BYTES, sizeof(Integral))> buf;
@@ -368,7 +365,7 @@ SHIFT_OP(>>)
         return std::bit_cast<Integral>(buf);
     }
 
-    template<typename FP> requires std::is_floating_point_v<FP>
+    template<std::floating_point FP>
     static constexpr wide_int from_float(FP fp) noexcept {
         FPBits<FP> fpbits(fp);
         wide_int ret = fpbits.full_fraction();
@@ -388,7 +385,7 @@ SHIFT_OP(>>)
     }
 
     std::string to_string(int base = 10, bool uppercase = false) const {
-		int_base::assertValid(base);
+        int_base::assertValid(base);
         std::string buf;
         div_t d = {abs(), 0};
         do {
@@ -403,7 +400,7 @@ SHIFT_OP(>>)
         return w.to_string();
     }
 
-    template<typename FP> requires std::is_floating_point_v<FP>
+    template<std::floating_point FP>
     constexpr FP to_float() const noexcept {
         FPBits<FP> fpbits;
         int exp = log2();
@@ -443,7 +440,7 @@ SHIFT_OP(>>)
     }
 
     static constexpr wide_int from_string(const char* cp, int base = 10) {
-		int_base::assertValid(base);
+        int_base::assertValid(base);
         if (cp == 0 || *cp == 0) throw std::invalid_argument("invalid string");
         bool neg = false;
         switch (cp[0]) {
@@ -558,10 +555,10 @@ SHIFT_OP(>>)
     }
 };
 
-template<typename Integral> requires std::is_integral_v<Integral>
+template<std::integral Integral>
 wide_int(Integral) -> wide_int<sizeof(Integral) << 3, std::is_signed_v<Integral>>;
 
-#define BINARY_OP(op) \
+#define YAO_MATH_WIDE_INT_BINARY_OP(op) \
 template<size_t N, bool S, size_t M, bool R> \
 constexpr std::common_type_t<wide_int<N, S>, wide_int<M, R>> \
     operator op(wide_int<N, S> const& lhs, wide_int<M, R> const& rhs) noexcept { \
@@ -569,13 +566,13 @@ constexpr std::common_type_t<wide_int<N, S>, wide_int<M, R>> \
     return ret op##= rhs; \
 }
 
-BINARY_OP(+)
-BINARY_OP(-)
-BINARY_OP(&)
-BINARY_OP(|)
-BINARY_OP(^)
+YAO_MATH_WIDE_INT_BINARY_OP(+)
+YAO_MATH_WIDE_INT_BINARY_OP(-)
+YAO_MATH_WIDE_INT_BINARY_OP(&)
+YAO_MATH_WIDE_INT_BINARY_OP(|)
+YAO_MATH_WIDE_INT_BINARY_OP(^)
 
-#undef BINARY_OP
+#undef YAO_MATH_WIDE_INT_BINARY_OP
 
 template<size_t N, bool S, size_t M, bool R>
 constexpr std::common_type_t<wide_int<N, S>, wide_int<M, R>> 
@@ -617,22 +614,22 @@ constexpr int compare(wide_int<N, S> const& lhs, wide_int<M, R> const& rhs) noex
     return ret.compare(rhs);
 }
 
-#define COMPARE_OP(op) \
+#define YAO_MATH_WIDE_INT_COMPARE_OP(op) \
 template<size_t N, bool S, size_t M, bool R> \
 constexpr bool operator op(wide_int<N, S> const& lhs, wide_int<M, R> const& rhs) noexcept { \
     return compare(lhs, rhs) op 0; \
 }
 
-COMPARE_OP(==)
-COMPARE_OP(!=)
-COMPARE_OP(<)
-COMPARE_OP(>)
-COMPARE_OP(<=)
-COMPARE_OP(>=)
+YAO_MATH_WIDE_INT_COMPARE_OP(==)
+YAO_MATH_WIDE_INT_COMPARE_OP(!=)
+YAO_MATH_WIDE_INT_COMPARE_OP(<)
+YAO_MATH_WIDE_INT_COMPARE_OP(>)
+YAO_MATH_WIDE_INT_COMPARE_OP(<=)
+YAO_MATH_WIDE_INT_COMPARE_OP(>=)
 
-#undef COMPARE_OP
+#undef YAO_MATH_WIDE_INT_COMPARE_OP
 
-#define ALIAS(N) \
+#define YAO_MATH_WIDE_INT_ALIAS(N) \
 using sint##N = wide_int<N, true>; \
 using uint##N = wide_int<N, false>; \
 inline namespace literals { \
@@ -652,15 +649,15 @@ constexpr uint##N operator"" _uL##N(const char* s) { \
 } \
 }
 
-ALIAS(128)
-ALIAS(256)
-ALIAS(512)
-ALIAS(1024)
-ALIAS(2048)
-ALIAS(4096)
-ALIAS(8192)
+YAO_MATH_WIDE_INT_ALIAS(128)
+YAO_MATH_WIDE_INT_ALIAS(256)
+YAO_MATH_WIDE_INT_ALIAS(512)
+YAO_MATH_WIDE_INT_ALIAS(1024)
+YAO_MATH_WIDE_INT_ALIAS(2048)
+YAO_MATH_WIDE_INT_ALIAS(4096)
+YAO_MATH_WIDE_INT_ALIAS(8192)
 
-#undef ALIAS
+#undef YAO_MATH_WIDE_INT_ALIAS
 
 }
 

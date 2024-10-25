@@ -3,8 +3,8 @@
 #include <iostream>
 
 constexpr yao_math::uint256 foo = yao_math::pow(yao_math::uint256(3), 100);
-constexpr yao_math::uint256 bar = yao_math::uint256::from_string("123456");
-static_assert(foo > bar);
+constexpr yao_math::uint256 bar = yao_math::uint256::from_string("515377520732011331036461129765621272702107522001");
+static_assert(foo == bar);
 
 int main() {
     using namespace std;
