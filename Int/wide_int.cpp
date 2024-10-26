@@ -40,6 +40,19 @@ namespace yao_math {
         }
     }
 
+    constexpr void memmove(byte *dst, const byte *src, size_t size) noexcept {
+        if constexpr (std::is_constant_evaluated()) {
+            if (src > dst) {
+                for (size_t i = 0; i < size; ++i) dst[i] = src[i];
+            } else {
+                for (size_t i = size - 1; /* i >= 0 */ ~i; --i) dst[i] = src[i];
+            }
+        } else {
+            std::memmove(dst, src, size);
+        }
+    }
+
+
     template<size_t N, bool S>
     struct wide_int;
 }
@@ -614,6 +627,19 @@ constexpr int compare(wide_int<N, S> const& lhs, wide_int<M, R> const& rhs) noex
     return ret.compare(rhs);
 }
 
+template<size_t N, bool S, size_t M, bool R>
+constexpr std::common_type_t<wide_int<N, S>, wide_int<M, R>>
+    gcd(wide_int<N, S> const& x, wide_int<M, R> const& y) {
+    return y ? gcd(y, x % y) : x;
+}
+
+template<size_t N, bool S, size_t M, bool R>
+constexpr std::common_type_t<wide_int<N, S>, wide_int<M, R>>
+    lcm(wide_int<N, S> const& x, wide_int<M, R> const& y) {
+    return x / gcd(x, y) * y;
+}
+
+
 #define YAO_MATH_WIDE_INT_COMPARE_OP(op) \
 template<size_t N, bool S, size_t M, bool R> \
 constexpr bool operator op(wide_int<N, S> const& lhs, wide_int<M, R> const& rhs) noexcept { \
@@ -661,9 +687,13 @@ YAO_MATH_WIDE_INT_ALIAS(8192)
 
 }
 
+namespace std {
+
 template<size_t N, bool S>
-struct std::hash<yao_math::wide_int<N, S>> {
+struct hash<yao_math::wide_int<N, S>> {
     constexpr size_t operator()(yao_math::wide_int<N, S> const& rhs) const noexcept {
         return rhs.template to_integral<size_t>();
     }
 };
+
+}

@@ -85,7 +85,7 @@ public:
 
 template<typename CInt>
 std::pair<Mono, CInt> gcd(std::pair<Mono, CInt> const& a, std::pair<Mono, CInt> const& b) {
-    return {gcd(a.first, b.first), gcd(a.second, b.second)};
+    return {gcd(a.first, b.first), std::gcd(a.second, b.second)};
 }
 
 template<typename CInt>
